@@ -1,0 +1,12 @@
+# Date/Time = Tue Aug 23 11:00:00 2005
+# Crate map for HKS test bench
+
+TSROC=1
+
+==== Crate 1 type vme Bank Decoding
+# slot model bank
+  3    250   3
+
+#==== Crate 9 type vme Bank Decoding
+# slot model bank
+#  7    250   250

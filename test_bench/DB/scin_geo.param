@@ -1,0 +1,27 @@
+; sample parameter file for scin detector
+
+kscin_num_planes = 1
+
+kscin_plane_names = "tof1"
+
+; number of paddles per plane, nelement
+kscin_tof1_nr = 8
+		  
+; randmonly set geometry
+kscin_tof1_zpos=0.0
+kscin_tof1_dzpos=2.0
+kscin_tof1_size=4.0
+kscin_tof1_spacing=1.0
+
+; position for paddles
+kscin_tof1_left = -30.0
+kscin_tof1_right = 30.0
+kscin_tof1_offset = 0.0
+kscin_tof1_center = 0.0
+		  0.0
+		  0.0
+		  0.0
+		  0.0
+		  0.0
+		  0.0
+		  0.0

@@ -1,0 +1,27 @@
+; Scin detector cuts parameters
+
+is_mc=0
+
+kscin_cosmicflag=0
+kscin_debug_adc=1
+
+kscin_OutputSsampWaveform=0
+kscin_UseSampWaveform=0
+
+; FADC mode
+;kscin_adc_mode=1
+
+;ksin_SampNSA=
+;ksin_SampNSAT=
+;ksin_SampNSAB=
+
+kscin_tdc_min=16000
+kscin_tdc_max=21500
+kscin_tdc_to_time=0.09766
+
+; parameters are set randmonly to avoid errors
+kscin_adc_tdc_offset=1800
+kscin_tdc_offset=1500
+
+kscin_tdcrefcut=-1000
+kscin_adcrefcut=-2500
