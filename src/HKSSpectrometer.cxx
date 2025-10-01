@@ -24,21 +24,6 @@ HKSSpectrometer::~HKSSpectrometer()
 }
 
 //_____________________________________________________________________________
-THaAnalysisObject::EStatus HKSSpectrometer::Init( const TDatime& date )
-{
-
-  THaDetector* detdc = GetDetector("DC");
-  if( dynamic_cast<DC*>(detdc) ) {
-    fDC = static_cast<DC*>(detdc);
-  } else {
-    Error("HKSSpectrometer", "Cannot find detector DC");
-    fDC = nullptr;
-  }
-  
-  return THaSpectrometer::Init(date);
-}
-
-//_____________________________________________________________________________
 Int_t HKSSpectrometer::ReadDatabase( const TDatime& date )
 {
 

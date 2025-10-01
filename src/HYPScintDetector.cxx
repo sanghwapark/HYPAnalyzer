@@ -39,8 +39,6 @@ delete[] fTdcOffset;
 fTdcOffset = nullptr;
 delete[] fAdcTdcOffset;
 fAdcTdcOffset = nullptr;
-delete[] fHodoSlop;
-fHodoSlop = nullptr;
 
 delete[] fHodoNegAdcTimeWindowMin;
 fHodoNegAdcTimeWindowMin = nullptr;
@@ -54,24 +52,6 @@ fHodoPosAdcTimeWindowMax = nullptr;
 delete[] fPlaneNames;
 fPlaneNames = nullptr;
 
-delete[] fHodoVelLight;
-fHodoVelLight = nullptr;
-
-// Time walk
-delete[] fHodoVelFit;
-fHodoVelFit = nullptr;
-delete[] fHodoCableFit;
-fHodoCableFit = nullptr;
-delete[] fHodo_LCoeff;
-fHodo_LCoeff = nullptr;
-delete[] fHodoPos_c1;
-fHodoPos_c1 = nullptr;
-delete[] fHodoNeg_c1;
-fHodoNeg_c1 = nullptr;
-delete[] fHodoPos_c2;
-fHodoPos_c2 = nullptr;
-delete[] fHodoNeg_c2;
-fHodoNeg_c2 = nullptr;
 }
 
 //________________________________________________________________
@@ -110,7 +90,7 @@ void HYPScintDetector::Setup( const char *name, const char *description )
   gHcParms->LoadParmValues((DBRequest *)&listextra, prefix);
 
   cout << "Plane Name List : " << planenamelist << endl;
-
+  
   vector<string> plane_names = Podd::vsplit(planenamelist);
   // Plane names
   if (plane_names.size() != (UInt_t)fNPlanes) {
@@ -143,9 +123,11 @@ void HYPScintDetector::Setup( const char *name, const char *description )
 //________________________________________________________________
 THaAnalysisObject::EStatus HYPScintDetector::Init(const TDatime &date) 
 {
+  cout << "HYPScinDetector::Init" << endl;
   Setup(GetName(), GetTitle());
 
-  char EngineDID[] = "xCIN"; 
+  cout << "Fill Detector map" << endl;
+  char EngineDID[] = "xSCIN"; 
   EngineDID[0]     = toupper(GetApparatus()->GetName()[0]);
   if (gHcDetectorMap->FillMap(fDetMap, EngineDID) < 0) {
     static const char *const here = "Init()";
@@ -235,22 +217,21 @@ Int_t HYPScintDetector::ReadDatabase( const TDatime& date )
   prefix[0] = tolower(GetApparatus()->GetName()[0]);
   prefix[1] = '\0';
 
-  for(Int_t i=0;i<fNPlanes;i++) {
-    DBRequest list[]={
-      {Form("scin_%s_nr",fPlaneNames[i]), &fNPaddle[i], kInt},
-      {0}
-    };
+  fNPaddle = new Int_t[fNPlanes]; 
+  for(Int_t i = 0; i < fNPlanes; i++){
+    DBRequest list[]={{Form("scin_%s_nr",fPlaneNames[i]), &fNPaddle[i], kInt},
+		      {0}};
     gHcParms->LoadParmValues((DBRequest*)&list,prefix);
   }
 
   // for all planes
   fTdcOffset    = new Int_t[fNPlanes];
   fAdcTdcOffset = new Double_t[fNPlanes];
-  fHodoSlop     = new Double_t[fNPlanes];
+
   for (int ip = 0; ip < fNPlanes; ip++) {
     fTdcOffset[ip]    = 0;
     fAdcTdcOffset[ip] = 0;
-    fHodoSlop[ip]     = 0;
+
   }
 
   Int_t fMaxScinPerPlane = fNPaddle[0];
@@ -266,17 +247,6 @@ Int_t HYPScintDetector::ReadDatabase( const TDatime& date )
   fHodoNegAdcTimeWindowMin = new Double_t[fMaxHodoScin];
   fHodoNegAdcTimeWindowMax = new Double_t[fMaxHodoScin];
 
-  fHodoVelLight = new Double_t[fMaxHodoScin];
-
-  // Time walk
-  fHodoVelFit   = new Double_t[fMaxHodoScin];
-  fHodoCableFit = new Double_t[fMaxHodoScin];
-  fHodo_LCoeff  = new Double_t[fMaxHodoScin];
-  fHodoPos_c1   = new Double_t[fMaxHodoScin];
-  fHodoNeg_c1   = new Double_t[fMaxHodoScin];
-  fHodoPos_c2   = new Double_t[fMaxHodoScin];
-  fHodoNeg_c2   = new Double_t[fMaxHodoScin];
-
   for (int ii = 0; ii < fMaxHodoScin; ii++) {
     fHodoPosAdcTimeWindowMin[ii] = -1000.;
     fHodoPosAdcTimeWindowMax[ii] = 1000.;
@@ -288,7 +258,7 @@ Int_t HYPScintDetector::ReadDatabase( const TDatime& date )
                        {"scin_tdc_min", &fScinTdcMin, kDouble},
                        {"scin_tdc_max", &fScinTdcMax, kDouble},
                        {"scin_tdc_to_time", &fScinTdcToTime, kDouble},
-                       {"scin_PosAdcTimeWindowMin", fHodoPosAdcTimeWindowMin, kDouble, (UInt_t)fMaxHodoScin, 1},
+                       {"scin_PosAdcTimeWindowMin", fHodoPosAdcTimeWindowMin, kDouble, (UInt_t)fMaxHodoScin, 1}, // optional for now
                        {"scin_PosAdcTimeWindowMax", fHodoPosAdcTimeWindowMax, kDouble, (UInt_t)fMaxHodoScin, 1},
                        {"scin_NegAdcTimeWindowMin", fHodoNegAdcTimeWindowMin, kDouble, (UInt_t)fMaxHodoScin, 1},
                        {"scin_NegAdcTimeWindowMax", fHodoNegAdcTimeWindowMax, kDouble, (UInt_t)fMaxHodoScin, 1},
@@ -301,47 +271,16 @@ Int_t HYPScintDetector::ReadDatabase( const TDatime& date )
 
   gHcParms->LoadParmValues((DBRequest *)&list3, prefix);
 
+  DBRequest list5[] = {{"is_mc", &fIsMC, kInt, 0, 1}, {0}};
+  fIsMC             = 0;
+  gHcParms->LoadParmValues((DBRequest *)&list5, "");
+
   DBRequest list6[] = {{"scin_adc_tdc_offset", fAdcTdcOffset, kDouble, (UInt_t)fNPlanes, 1},
                        {"scin_tdc_offset", fTdcOffset, kInt, (UInt_t)fNPlanes, 1},
                        {0}};
   gHcParms->LoadParmValues((DBRequest *)&list6, prefix);
 
-  DBRequest list5[] = {{"is_mc", &fIsMC, kInt, 0, 1}, {0}};
-  fIsMC             = 0;
-  gHcParms->LoadParmValues((DBRequest *)&list5, "");
 
-  DBRequest list[] = {{"scin_vel_light", &fHodoVelLight[0], kDouble, (UInt_t)fMaxHodoScin, 1}, {0}};
-  gHcParms->LoadParmValues((DBRequest *)&list, prefix);
-
-  DBRequest list4[] = {{"scin_velFit", &fHodoVelFit[0], kDouble, (UInt_t)fMaxHodoScin, 1},
-                       {"scin_cableFit", &fHodoCableFit[0], kDouble, (UInt_t)fMaxHodoScin, 1},
-                       {"scin_LCoeff", &fHodo_LCoeff[0], kDouble, (UInt_t)fMaxHodoScin, 1},
-                       {"scin_c1_Pos", &fHodoPos_c1[0], kDouble, (UInt_t)fMaxHodoScin, 1},
-                       {"scin_c1_Neg", &fHodoNeg_c1[0], kDouble, (UInt_t)fMaxHodoScin, 1},
-                       {"scin_c2_Pos", &fHodoPos_c2[0], kDouble, (UInt_t)fMaxHodoScin, 1},
-                       {"scin_c2_Neg", &fHodoNeg_c2[0], kDouble, (UInt_t)fMaxHodoScin, 1},
-                       {"TDC_threshold", &fTdc_Thrs, kDouble, 0, 1},
-                       {0}};
-
-  fTdc_Thrs = 1.0;
-  // Set Default Values if NOT defined in param file
-  for (int i = 0; i < fMaxHodoScin; i++) {
-    // Turn OFF Time-Walk Correction if param file NOT found
-    fHodoPos_c1[i] = 0.0;
-    fHodoPos_c2[i] = 0.0;
-    fHodoNeg_c1[i] = 0.0;
-    fHodoNeg_c2[i] = 0.0;
-  }
-  for (int i = 0; i < fMaxHodoScin; i++) {
-    // Set scin Velocity/Cable to default
-    fHodoCableFit[i] = 0.0;
-    fHodoVelFit[i]   = 15.0;
-    // set time coeff between paddles to default
-    fHodo_LCoeff[i] = 0.0;
-  }
-
-  gHcParms->LoadParmValues((DBRequest *)&list4, prefix);  
-  
   return kOK;
 }
 

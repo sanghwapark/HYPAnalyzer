@@ -12,7 +12,7 @@ class HKSSpectrometer : public THaSpectrometer {
   virtual Int_t FindVertices( TClonesArray& tracks );
   virtual Int_t TrackCalc();
 
-  virtual EStatus Init( const TDatime& date );
+  //  virtual EStatus Init( const TDatime& date );
   
  protected:
 
