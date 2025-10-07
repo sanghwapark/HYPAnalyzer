@@ -233,14 +233,10 @@ void HYPScintillatorPlane::Clear(Option_t *opt) {
   frNegAdcSampPulseTime->Clear();
 
   // Clear occupancies
-  for (UInt_t ielem = 0; ielem < fNumPosAdcHits.size(); ielem++)
-    fNumPosAdcHits.at(ielem) = 0;
-  for (UInt_t ielem = 0; ielem < fNumNegAdcHits.size(); ielem++)
-    fNumNegAdcHits.at(ielem) = 0;
-  for (UInt_t ielem = 0; ielem < fNumPosTdcHits.size(); ielem++)
-    fNumPosTdcHits.at(ielem) = 0;
-  for (UInt_t ielem = 0; ielem < fNumNegTdcHits.size(); ielem++)
-    fNumNegTdcHits.at(ielem) = 0;
+  fNumPosAdcHits.clear();
+  fNumNegAdcHits.clear();
+  fNumPosTdcHits.clear();
+  fNumNegTdcHits.clear();
 
   fHitDistance    = kBig;
   fScinYPos       = kBig;
@@ -343,12 +339,6 @@ Int_t HYPScintillatorPlane::ReadDatabase(const TDatime &date) {
   // Create arrays to hold results here
   InitializePedestals();
 
-  // Initialize
-  fNumPosAdcHits = vector<Int_t>(fNelem, 0.0);
-  fNumNegAdcHits = vector<Int_t>(fNelem, 0.0);
-  fNumPosTdcHits = vector<Int_t>(fNelem, 0.0);
-  fNumNegTdcHits = vector<Int_t>(fNelem, 0.0);
-
   return 0;
 }
 
@@ -390,47 +380,43 @@ Int_t HYPScintillatorPlane::DefineVariables(EMode mode) {
         {"PosAdcSampPulseAmp", "Pos Samp ADC pulse amplitudes", "frPosAdcSampPulseAmp.THcSignalHit.GetData()"},
         {"PosAdcSampPulseTime", "Pos Samp ADC pulse times", "frPosAdcSampPulseTime.THcSignalHit.GetData()"},
 
-        {"NegTdcTimeRaw", "List of bottom raw TDC values.", "frNegTdcTimeRaw.THcSignalHit.GetData()"},
-        {"NegAdcPedRaw", "List of bottom raw ADC pedestals", "frNegAdcPedRaw.THcSignalHit.GetData()"},
-        {"NegAdcPulseIntRaw", "List of bottom raw ADC pulse integrals.", "frNegAdcPulseIntRaw.THcSignalHit.GetData()"},
-        {"NegAdcPulseAmpRaw", "List of bottom raw ADC pulse amplitudes.", "frNegAdcPulseAmpRaw.THcSignalHit.GetData()"},
-        {"NegAdcPulseTimeRaw", "List of bottom raw ADC pulse times.", "frNegAdcPulseTimeRaw.THcSignalHit.GetData()"},
+        {"NegTdcTimeRaw", "List of neg raw TDC values.", "frNegTdcTimeRaw.THcSignalHit.GetData()"},
+        {"NegAdcPedRaw", "List of neg raw ADC pedestals", "frNegAdcPedRaw.THcSignalHit.GetData()"},
+        {"NegAdcPulseIntRaw", "List of neg raw ADC pulse integrals.", "frNegAdcPulseIntRaw.THcSignalHit.GetData()"},
+        {"NegAdcPulseAmpRaw", "List of neg raw ADC pulse amplitudes.", "frNegAdcPulseAmpRaw.THcSignalHit.GetData()"},
+        {"NegAdcPulseTimeRaw", "List of neg raw ADC pulse times.", "frNegAdcPulseTimeRaw.THcSignalHit.GetData()"},
 
-        {"NegTdcTime", "List of bottom TDC values.", "frNegTdcTime.THcSignalHit.GetData()"},
-        {"NegAdcPed", "List of bottom ADC pedestals", "frNegAdcPed.THcSignalHit.GetData()"},
-        {"NegAdcPulseInt", "List of bottom ADC pulse integrals.", "frNegAdcPulseInt.THcSignalHit.GetData()"},
-        {"NegAdcPulseAmp", "List of bottom ADC pulse amplitudes.", "frNegAdcPulseAmp.THcSignalHit.GetData()"},
-        {"NegAdcPulseTime", "List of bottom ADC pulse times.", "frNegAdcPulseTime.THcSignalHit.GetData()"},
+        {"NegTdcTime", "List of neg TDC values.", "frNegTdcTime.THcSignalHit.GetData()"},
+        {"NegAdcPed", "List of neg ADC pedestals", "frNegAdcPed.THcSignalHit.GetData()"},
+        {"NegAdcPulseInt", "List of neg ADC pulse integrals.", "frNegAdcPulseInt.THcSignalHit.GetData()"},
+        {"NegAdcPulseAmp", "List of neg ADC pulse amplitudes.", "frNegAdcPulseAmp.THcSignalHit.GetData()"},
+        {"NegAdcPulseTime", "List of neg ADC pulse times.", "frNegAdcPulseTime.THcSignalHit.GetData()"},
 
-        {"NegAdcSampPedRaw", "Bottom Raw Samp ADC pedestals", "frNegAdcSampPedRaw.THcSignalHit.GetData()"},
-        {"NegAdcSampPulseIntRaw", "Bottom Raw Samp ADC pulse integrals",
+        {"NegAdcSampPedRaw", "Neg Raw Samp ADC pedestals", "frNegAdcSampPedRaw.THcSignalHit.GetData()"},
+        {"NegAdcSampPulseIntRaw", "Neg Raw Samp ADC pulse integrals",
          "frNegAdcSampPulseIntRaw.THcSignalHit.GetData()"},
-        {"NegAdcSampPulseAmpRaw", "Bottom Raw Samp ADC pulse amplitudes",
+        {"NegAdcSampPulseAmpRaw", "Neg Raw Samp ADC pulse amplitudes",
          "frNegAdcSampPulseAmpRaw.THcSignalHit.GetData()"},
-        {"NegAdcSampPulseTimeRaw", "Bottom Raw Samp ADC pulse times",
+        {"NegAdcSampPulseTimeRaw", "Neg Raw Samp ADC pulse times",
          "frNegAdcSampPulseTimeRaw.THcSignalHit.GetData()"},
-        {"NegAdcSampPed", "Bottom Samp ADC pedestals", "frNegAdcSampPed.THcSignalHit.GetData()"},
-        {"NegAdcSampPulseInt", "Bottom Samp ADC pulse integrals", "frNegAdcSampPulseInt.THcSignalHit.GetData()"},
-        {"NegAdcSampPulseAmp", "Bottom Samp ADC pulse amplitudes", "frNegAdcSampPulseAmp.THcSignalHit.GetData()"},
-        {"NegAdcSampPulseTime", "Bottom Samp ADC pulse times", "frNegAdcSampPulseTime.THcSignalHit.GetData()"},
+        {"NegAdcSampPed", "Neg Samp ADC pedestals", "frNegAdcSampPed.THcSignalHit.GetData()"},
+        {"NegAdcSampPulseInt", "Neg Samp ADC pulse integrals", "frNegAdcSampPulseInt.THcSignalHit.GetData()"},
+        {"NegAdcSampPulseAmp", "Neg Samp ADC pulse amplitudes", "frNegAdcSampPulseAmp.THcSignalHit.GetData()"},
+        {"NegAdcSampPulseTime", "Neg Samp ADC pulse times", "frNegAdcSampPulseTime.THcSignalHit.GetData()"},
 
         {"numPosAdcHits", "Number of Pos ADC Hits Per PMT", "fNumPosAdcHits"}, // Hodo+ ADC occupancy - vector<Int_t>
-        {"numNegAdcHits", "Number of Bottom ADC Hits Per PMT",
-         "fNumNegAdcHits"}, // Hodo- ADC occupancy - vector <Int_t>
+        {"numNegAdcHits", "Number of Neg ADC Hits Per PMT", "fNumNegAdcHits"}, // Hodo- ADC occupancy - vector <Int_t>
 
         {"numPosTdcHits", "Number of Pos TDC Hits Per PMT", "fNumPosTdcHits"}, // Hodo+ TDC occupancy - vector<Int_t>
-        {"numNegTdcHits", "Number of Bottom TDC Hits Per PMT",
-         "fNumNegTdcHits"}, // Hodo- TDC occupancy - vector <Int_t>
+        {"numNegTdcHits", "Number of Neg TDC Hits Per PMT", "fNumNegTdcHits"}, // Hodo- TDC occupancy - vector <Int_t>
 
         {"totNumPosAdcHits", "Total Number of Pos ADC Hits", "fTotNumPosAdcHits"}, // Hodo+ raw ADC multiplicity Int_t
-        {"totNumNegAdcHits", "Total Number of Bottom ADC Hits", "fTotNumNegAdcHits"}, // Hodo- raw ADC multiplicity ""
-        {"totNumAdcHits", "Total Number of PMTs Hit (as measured by ADCs)",
-         "fTotNumAdcHits"}, // Hodo raw ADC multiplicity  ""
+        {"totNumNegAdcHits", "Total Number of Neg ADC Hits", "fTotNumNegAdcHits"}, // Hodo- raw ADC multiplicity ""
+        {"totNumAdcHits", "Total Number of PMTs Hit (as measured by ADCs)", "fTotNumAdcHits"}, // Hodo raw ADC multiplicity  ""
 
         {"totNumPosTdcHits", "Total Number of Pos TDC Hits", "fTotNumPosTdcHits"},    // Hodo+ raw TDC multiplicity ""
-        {"totNumNegTdcHits", "Total Number of Bottom TDC Hits", "fTotNumNegTdcHits"}, // Hodo- raw TDC multiplicity ""
-        {"totNumTdcHits", "Total Number of PMTs Hits (as measured by TDCs)",
-         "fTotNumTdcHits"}, // Hodo raw TDC multiplicity  ""
+        {"totNumNegTdcHits", "Total Number of Neg TDC Hits", "fTotNumNegTdcHits"}, // Hodo- raw TDC multiplicity ""
+        {"totNumTdcHits", "Total Number of PMTs Hits (as measured by TDCs)", "fTotNumTdcHits"}, // Hodo raw TDC multiplicity  ""
         {0}};
     DefineVarsFromList(vars, mode);
   } // end debug statement
@@ -504,7 +490,7 @@ Int_t HYPScintillatorPlane::ProcessHits(TClonesArray *rawhits, Int_t nexthit) {
       nrPosTdcHits++; 
       fTotNumTdcHits++;
       fTotNumPosTdcHits++;
-      fNumPosTdcHits.at(padnum - 1) = padnum;
+      fNumPosTdcHits.emplace_back(padnum);
     }
 
     // Now, repeat for the Neg end
@@ -530,7 +516,7 @@ Int_t HYPScintillatorPlane::ProcessHits(TClonesArray *rawhits, Int_t nexthit) {
       nrNegTdcHits++; 
       fTotNumTdcHits++;
       fTotNumNegTdcHits++;
-      fNumNegTdcHits.at(padnum - 1) = padnum;
+      fNumNegTdcHits.emplace_back(padnum);
     } // thit loop
 
     // Pos ADC hits
@@ -579,7 +565,7 @@ Int_t HYPScintillatorPlane::ProcessHits(TClonesArray *rawhits, Int_t nexthit) {
         nrPosAdcHits++;
         fTotNumAdcHits++;
         fTotNumPosAdcHits++;
-        fNumPosAdcHits.at(padnum - 1) = padnum;
+        fNumPosAdcHits.emplace_back(padnum);
       }
     }
 
@@ -700,7 +686,7 @@ Int_t HYPScintillatorPlane::ProcessHits(TClonesArray *rawhits, Int_t nexthit) {
         nrNegAdcHits++;
         fTotNumAdcHits++;
         fTotNumNegAdcHits++;
-        fNumNegAdcHits.at(padnum - 1) = padnum;
+        fNumNegAdcHits.emplace_back(padnum);
       }
     }
 
@@ -854,7 +840,7 @@ void HYPScintillatorPlane::CalculatePedestals() {
     fPosPed[i]    = ((Double_t)fPosPedSum[i]) / TMath::Max(1, fPosPedCount[i]);
     fPosThresh[i] = fPosPed[i] + 15;
 
-    // Bottom tubes
+    // Neg tubes
     fNegPed[i]    = ((Double_t)fNegPedSum[i]) / TMath::Max(1, fNegPedCount[i]);
     fNegThresh[i] = fNegPed[i] + 15;
   }
