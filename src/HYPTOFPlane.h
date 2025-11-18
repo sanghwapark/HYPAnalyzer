@@ -30,13 +30,12 @@ class HYPTOFPlane : public THaSubDetector {
 
     Int_t fNHits; // Total number of hits decoded
 
-    virtual Int_t ReadDatabase( const TDatime &date );
-    virtual Int_t DefineVariables( EMode mode = kDefine );
-    virtual Int_t ReadGeometry( FILE* file, const TDatime& date,
-              Bool_t required = false);
-    virtual Int_t StoreHit( const DigitizerHitInfo_t& hitinfo, UInt_t data );
-    
-    OptUInt_t LoadData( const THaEvData& evdata, const DigitizerHitInfo_t& hitinfo ) override;
+    Int_t ReadDatabase( const TDatime &date );
+    Int_t DefineVariables( EMode mode = kDefine );
+    Int_t ReadGeometry( FILE* file, const TDatime& date, Bool_t required = false);
+
+    Int_t StoreHit( const DigitizerHitInfo_t& hitinfo, UInt_t data );    
+    OptUInt_t LoadData( const THaEvData& evdata, const DigitizerHitInfo_t& hitinfo );
 
     HYPTOFDetector* fTOF; // parent detector
     FADCData* fFADCData;

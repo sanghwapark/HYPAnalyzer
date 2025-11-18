@@ -38,15 +38,21 @@ namespace HYPData {
       UInt_t coarsetime = fadc->GetPulseCoarseTimeData(hitinfo.chan, i);
       UInt_t finetime = fadc->GetPulseFineTimeData(hitinfo.chan, i);
 
-      /*
+    /*
         cout << "Integral: " << pulseint << endl;
         cout << "PulseAmp: " << pulsepeak << endl;
         cout << "PulseTime: " << pulsetime << endl;
         cout << "Pedestal: " << pulseped << endl;
         cout << "CoarseTime:" << coarsetime << endl;
         cout << "FineTime:" << finetime << endl;
-      */
+    */
         fPulseData.push_back(FADCHit{chan, pulseint, pulsepeak, pulsetime, pulseped, coarsetime, finetime});
+    }
+
+    // Sample data
+    UInt_t nsamples = fadc->GetNumEvents(Decoder::kSampleADC, hitinfo.chan);
+    for(UInt_t isamp = 0; isamp < nsamples; isamp++) {
+      fSampleData.push_back(fadc->GetData(Decoder::kSampleADC, hitinfo.chan, isamp));
     }
 
     fNHits++;
