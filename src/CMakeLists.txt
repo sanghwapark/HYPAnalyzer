@@ -13,9 +13,9 @@ set(src
   HKSSpectrometer.cxx
   HYPDC.cxx
   HYPDCPlane.cxx
-  Cherenkov.cxx
   HYPTOFPlane.cxx
   HYPTOFDetector.cxx
+  HYPCherenkov.cxx  
   HYPData.cxx
   vfTDC.cxx
 )

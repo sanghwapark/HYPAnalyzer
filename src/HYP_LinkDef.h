@@ -10,7 +10,7 @@
 #pragma link C++ class HKSSpectrometer+;
 #pragma link C++ class HYPDC+;
 #pragma link C++ class HYPDCPlane+;
-#pragma link C++ class Cherenkov+;
+#pragma link C++ class HYPCherenkov+;
 #pragma link C++ class HYPTOFDetector+;
 #pragma link C++ class HYPTOFPlane+;
 #pragma link C++ class HYPData::FADCData+;
