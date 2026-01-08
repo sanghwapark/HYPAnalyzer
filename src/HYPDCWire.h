@@ -10,7 +10,7 @@ public:
     fWireNum(wire_num), fPos(pos), fTOffset(offset) {}
   virtual ~HYPDCWire() {}
 
-  Int_t    GetWireNum() const { return fWireNum; }
+  Int_t    GetNum() const { return fWireNum; }
   Int_t    GetFlag()    const { return fFlag; }
   Double_t GetPos()     const { return fPos; }
   Double_t GetTOffset() const { return fTOffset; }
@@ -33,7 +33,7 @@ private:
   HYPDCWire( const HYPDCWire& );
   HYPDCWire& operator=( const HYPDCWire& );
 
-  ClassDef(HYDCWire,0);
+  ClassDef(HYPDCWire,0);
 };
 
 #endif

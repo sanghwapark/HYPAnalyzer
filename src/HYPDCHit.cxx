@@ -32,8 +32,8 @@ Int_t HYPDCHit::Compare( const TObject* obj ) const
 
   const HYPDCHit* hit = static_cast<const HYPDCHit*>( obj );
 
-  Int_t myWireNum = fWire->GetWireNum();
-  Int_t hitWireNum = hit->GetWire()->GetWireNum();
+  Int_t myWireNum = fWire->GetNum();
+  Int_t hitWireNum = hit->GetWire()->GetNum();
 //  Int_t myPlaneNum = GetPlaneNum();
 //  Int_t hitPlaneNum = hit->GetPlaneNum();
 //  if (myPlaneNum < hitPlaneNum) return -1;

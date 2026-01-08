@@ -1,4 +1,5 @@
 #include "HYPDCPlane.h"
+#include "HYPDCHit.h"
 #include "THaDetMap.h"
 #include "THaEvData.h"
 #include "VarType.h"
@@ -14,20 +15,28 @@ HYPDCPlane::HYPDCPlane( const char* name, const char* description,
   fNHits(0), fAxis(0)
 {
   // constructor
+
+  fHits = new TClonesArray("HYPDCHit", 100);
+  fWires = new TClonesArray("HYPDCWire", 160);
 }
 
 //__________________________________________________________________
 HYPDCPlane::~HYPDCPlane()
 {
   RemoveVariables();
+
+  delete fHits;
+  delete fWires;
 }
 
 //__________________________________________________________________
 THaAnalysisObject::EStatus HYPDCPlane::Init(const TDatime &date)
 {
+
   EStatus status;
   if( (status = THaSubDetector::Init(date)) )
     return fStatus = status;
+  
   return fStatus = kOK;
 
 }
@@ -40,7 +49,6 @@ Int_t HYPDCPlane::ReadDatabase( const TDatime& date )
   FILE* file = OpenFile(date);
   if ( !file ) return kFileError;
 
-  
   // Read Geometry 
   Int_t err = ReadGeometry(file, date, true);
   if( err ) {
@@ -49,7 +57,7 @@ Int_t HYPDCPlane::ReadDatabase( const TDatime& date )
   }
 
   vector<Int_t> detmap;
-  UInt_t nelem;
+  Int_t nelem;
   DBRequest request[] = {
     {"detmap",  &detmap,  kIntV},
     {"nwires",   &nelem,   kInt},
@@ -70,13 +78,19 @@ Int_t HYPDCPlane::ReadDatabase( const TDatime& date )
     assert(fDC->Status() == kOK);
   }
 
-  cout << "HYPDCPlane::ReadDatabase " << fDetMap->GetSize() << endl;  
   // For vfTDC modules
   for(UInt_t i = 0; i < (UInt_t)fDetMap->GetSize(); i++ ){
     THaDetMap::Module* d = fDetMap->GetModule(i);
     cout << "Module: " << d->crate << " " << d->slot << " " << d->GetModel() << endl;
     if( d->GetModel() == 527 )
       d->MakeTDC();
+  }
+
+  // define wires
+  for(int i = 0; i < nelem; i++) {
+    Double_t pos = 0.0; // FIXME: calculate wire position 
+    Double_t offset = 0.0; // FIXME: tdc offset -- read from DB?
+    new((*fWires)[i]) HYPDCWire(i+1, fAxis, pos, offset);
   }
 
   return kOK;
@@ -86,9 +100,6 @@ Int_t HYPDCPlane::ReadDatabase( const TDatime& date )
 Int_t HYPDCPlane::ReadGeometry(FILE* file, const TDatime& date, Bool_t required)
 {
   // cout << "HYPDCPlane::ReadGeometry" << endl;
- // cout << GetPrefix() << endl;
- // string prefix = GetParent()->GetPrefix();
- // prefix = prefix + "." + GetName() + ".";
 
   vector<Double_t> position(3), size(3), angles(3);
   DBRequest request[] = {
@@ -125,10 +136,12 @@ Int_t HYPDCPlane::DefineVariables( EMode mode )
 {
 
   RVarDef vars[] = {
-    {"nhits",  "Number of raw TDC hits", "fNHits"},
-    {"chan",   "channel for a given hit","v_Chan"},
-    {"tdcraw", "Raw TDC",                "v_RawHitTDC"},
-    {"tdcopt", "TDC Option",             "v_RawHitOpt"},
+    {"nhits",   "Number of raw TDC hits", "fNHits"},
+    {"chan",    "channel for a given hit","v_Chan"},
+    {"tdcraw",  "Raw TDC",                "v_RawHitTDC"},
+    {"tdcopt",  "TDC Option",             "v_RawHitOpt"},
+    {"wire",    "Wire numbers with hits", "fHits.HYPDCHit.GetWireNum()"},
+    {"time_nc", "Time no ref corrected",  "fHits.HYPDCHit.GetTime()"},
     {nullptr}
   };
 
@@ -139,25 +152,26 @@ Int_t HYPDCPlane::DefineVariables( EMode mode )
 //__________________________________________________________________
 void HYPDCPlane::Clear( Option_t* opt )
 {
+  cout << "HYPDCPlane::Clear" << endl;
+
   THaSubDetector::Clear(opt);
   fNHits = 0;
-  fTDCHit.clear();
+  fHits->Clear();
 
   v_RawHitTDC.clear();
   v_RawHitOpt.clear();
   v_Chan.clear();
+
 }
 
 //__________________________________________________________________
 Int_t HYPDCPlane::Decode( const THaEvData& evdata )
 {
   const char* const here = "Decode";
-
   //  UInt_t evnum = evdata.GetEvNum();
   //  cout << "Event Number: " << evnum << endl;
 
-  // Assume we only have TDC module
-  // Loop over hits, allowing mullti hits for a channel
+  // Loop over hits, allowing multi hits for a channel
   auto hitIter = fDetMap->MakeMultiHitIterator(evdata);
   while(hitIter) {
     const auto& hitinfo = *hitIter;
@@ -168,34 +182,27 @@ Int_t HYPDCPlane::Decode( const THaEvData& evdata )
       continue;
     }
     
-    // cout << "SLOT CH NHIT HIT DATA: " << hitinfo.slot << " "
-    // << hitinfo.chan << " " << hitinfo.nhit << " " << hitinfo.hit << " " << evdata.GetData(hitinfo.crate, hitinfo.slot, hitinfo.chan, hitinfo.hit) << endl;
+    //cout << "SLOT CH lCH NHIT HIT DATA: " << hitinfo.slot << " "
+    // << hitinfo.chan << " " << hitinfo.chan << " " << hitinfo.nhit << " " << hitinfo.hit << " " << evdata.GetData(hitinfo.crate, hitinfo.slot, hitinfo.chan, hitinfo.hit) << endl;
     UInt_t chan = hitinfo.chan;
     UInt_t tdc = evdata.GetData(hitinfo.crate, hitinfo.slot, hitinfo.chan, hitinfo.hit);
     UInt_t tdc_opt = evdata.GetOpt(hitinfo.crate, hitinfo.slot, hitinfo.chan, hitinfo.hit);
-    fTDCHit.emplace_back(chan, tdc, tdc_opt);
 
+    // Temporary output containers
     v_Chan.emplace_back(chan);
     v_RawHitTDC.emplace_back(tdc);
     v_RawHitOpt.emplace_back(tdc_opt);
+
+    HYPDCWire* wire = GetWire(hitinfo.chan);
+    Double_t time = tdc * 1.0; // FIXME: calculate time
+    //Double_t time = - rawtdc*fNSperChan + fPlaneTimeZero - wire->GetTOffset(); // fNSperChan > 0 for 1877
+    new((*fHits)[fNHits]) HYPDCHit(wire, tdc, time);
 
     ++hitIter;
     fNHits++;
   }
 
   return fNHits;
-}
-
-//__________________________________________________________________
-Int_t HYPDCPlane::CoarseProcess( TClonesArray& tracks )
-{
-  return 0;
-}
-
-//__________________________________________________________________
-Int_t HYPDCPlane::FineProcess( TClonesArray& tracks )
-{
-  return 0;
 }
 
 ClassImp(HYPDCPlane)

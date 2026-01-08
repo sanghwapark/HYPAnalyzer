@@ -51,6 +51,8 @@ namespace HYPData {
 
     // Sample data
     UInt_t nsamples = fadc->GetNumEvents(Decoder::kSampleADC, hitinfo.chan);
+    fSampleData.push_back(chan);
+    fSampleData.push_back(nsamples);
     for(UInt_t isamp = 0; isamp < nsamples; isamp++) {
       fSampleData.push_back(fadc->GetData(Decoder::kSampleADC, hitinfo.chan, isamp));
     }
@@ -64,6 +66,7 @@ namespace HYPData {
   void FADCData::Clear()
   {
     fPulseData.clear();
+    fSampleData.clear();
     fNHits = 0;
   }
 }

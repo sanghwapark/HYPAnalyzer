@@ -3,6 +3,7 @@
 
 #include "THaTrackingDetector.h"
 #include "HYPDCPlane.h"
+#include "HYPDCChamber.h"
 
 class HYPDC : public THaTrackingDetector {
  public:
@@ -18,8 +19,10 @@ class HYPDC : public THaTrackingDetector {
   
  protected:
   
-  Int_t fNPlanes;
-  std::vector<HYPDCPlane*> fPlanes;
+  Int_t fNChambers;
+  std::vector<HYPDCChamber*> fChambers;
+
+  Int_t fNTracks;
   
   virtual Int_t   ReadDatabase( const TDatime& date );
   virtual Int_t   DefineVariables( EMode mode = kDefine );
