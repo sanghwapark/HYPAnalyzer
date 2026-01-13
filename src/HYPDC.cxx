@@ -90,6 +90,9 @@ Int_t HYPDC::DefineVariables( EMode mode )
 Int_t HYPDC::CoarseTrack( TClonesArray& tracks )
 {
 
+  for(Int_t i = 0; i < fNChambers; i++){
+    fChambers[i]->FindSpacePoints();
+  }
   return 0;
 }
 

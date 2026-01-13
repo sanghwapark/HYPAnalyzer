@@ -6,15 +6,16 @@
 class HYPDCWire : public TObject {
 
 public:
-  HYPDCWire( Int_t wire_num, Int_t axis, Double_t pos, Double_t offset) :
-    fWireNum(wire_num), fPos(pos), fTOffset(offset) {}
+  HYPDCWire( Int_t wire_num, Int_t plane, Int_t axis, Double_t pos, Double_t offset) :
+    fWireNum(wire_num), fPlaneNum(plane), fPos(pos), fTOffset(offset) {}
   virtual ~HYPDCWire() {}
 
-  Int_t    GetNum() const { return fWireNum; }
-  Int_t    GetFlag()    const { return fFlag; }
-  Double_t GetPos()     const { return fPos; }
-  Double_t GetTOffset() const { return fTOffset; }
-  Int_t    GetAxis() const { return fAxis; }
+  Int_t    GetNum()      const { return fWireNum; }
+  Int_t    GetFlag()     const { return fFlag; }
+  Double_t GetPos()      const { return fPos; }
+  Double_t GetTOffset()  const { return fTOffset; }
+  Int_t    GetAxis()     const { return fAxis; }
+  Int_t    GetPlaneNum() const { return fPlaneNum; }
 
   void SetWireNum(Int_t num) { fWireNum = num; }
   void SetFlag(Int_t flag) { fFlag = flag; }
@@ -24,6 +25,7 @@ public:
   
 protected:
   Int_t    fWireNum;     // wire number
+  Int_t    fPlaneNum;
   Int_t    fFlag;        // bad wire flag
   Double_t fPos;         // wire position
   Double_t fTOffset;     // Time offset

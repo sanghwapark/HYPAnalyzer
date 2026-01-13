@@ -136,17 +136,6 @@ Int_t HYPTOFPlane::ReadGeometry(FILE* file, const TDatime& date, Bool_t required
 Int_t HYPTOFPlane::DefineVariables( EMode mode )
 {
 
-  // To-dos:
-  // Define TOF hit obj and better manage the output vars
-  
-  // Raw FADC hits
-  /*
-  RVarDef vars[] = {
-    {0}
-  };
-
-  return DefineVarsFromList(vars, mode);
-  */
   return 0;
 }
 
@@ -221,6 +210,7 @@ Int_t HYPTOFPlane::Decode( const THaEvData& evdata )
 //__________________________________________________________________
 Int_t HYPTOFPlane::StoreHit( const DigitizerHitInfo_t& hitinfo, UInt_t data )
 {
+  // only take care of FADC data here
   Int_t nevents = fFADCData->AddHit(hitinfo);
 
   return nevents;
@@ -229,6 +219,7 @@ Int_t HYPTOFPlane::StoreHit( const DigitizerHitInfo_t& hitinfo, UInt_t data )
 //__________________________________________________________________
 Int_t HYPTOFPlane::CoarseProcess( TClonesArray& tracks )
 {
+
   return 0;
 }
 

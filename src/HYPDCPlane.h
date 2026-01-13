@@ -5,12 +5,13 @@
 #include "TClonesArray.h"
 #include "HYPData.h"
 #include "HYPDCWire.h"
+#include "HYPDCCluster.h"
 
 using namespace std;
 using namespace HYPData;
 
 namespace DC {
-  enum Axis{ kX, kU, kV};
+  enum Axis{ kX = 0, kU, kV, kUX, kVX};
 }
 
 class HYPDC;
@@ -24,12 +25,23 @@ class HYPDCPlane : public THaSubDetector {
     virtual EStatus Init( const TDatime &date );
     virtual Int_t   Decode( const THaEvData& );
   
-    Int_t SetAxis(Int_t axis) { return fAxis = axis; }
+    void  SetPlaneNum(Int_t i) { fPlaneNum = i; }
+    void  SetAxis(Int_t axis) { fAxis = axis; }
+    void  SetXsp(Double_t x) { fXsp = x; }
+    void  SetYsp(Double_t y) { fYsp = y; }
+    
+
     Int_t GetAxis() { return fAxis; }
 //    virtual Int_t   Print( Option_t* opt ="" ) const;
-
-    TClonesArray* GetHits()        const { return fHits; }
+    Double_t      GetZ()           const { return fCenter[2]; }
+    Double_t      GetXsp()         const { return fXsp; }
+    Double_t      GetYsp()         const { return fYsp; }
+    Int_t         GetPlaneNum()    const { return fPlaneNum; }
     Int_t         GetNHits()       const { return fHits->GetLast()+1; }
+    TClonesArray* GetHits()        const { return fHits; }
+    HYPDCHit*     GetHit(Int_t i)  const 
+    { assert( i>=0 && i<GetNHits() );
+      return (HYPDCHit*)fHits->UncheckedAt(i); }
     HYPDCWire*    GetWire(Int_t i) const 
     { assert( i>=0 && i<=GetNWires() );
       return (HYPDCWire*)fWires->UncheckedAt(i); }
@@ -38,6 +50,7 @@ class HYPDCPlane : public THaSubDetector {
 
     Int_t fNHits; // Total number of hits decoded
     Int_t fAxis;
+    Int_t fPlaneNum;
 
     TClonesArray* fHits;
     TClonesArray* fWires;
@@ -47,6 +60,11 @@ class HYPDCPlane : public THaSubDetector {
     vector<UInt_t> v_RawHitOpt;
     vector<UInt_t> v_Chan;
     
+    // Geometry parameters
+    TVector3 fCenter;
+    Double_t fXsp;
+    Double_t fYsp;
+
     virtual Int_t ReadDatabase( const TDatime &date );
     virtual Int_t DefineVariables( EMode mode = kDefine );
     virtual Int_t ReadGeometry( FILE* file, const TDatime& date, Bool_t required = false);

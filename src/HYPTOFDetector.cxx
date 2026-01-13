@@ -94,6 +94,9 @@ Int_t HYPTOFDetector::DefineVariables( EMode mode)
 //____________________________________________________________________________________
 Int_t HYPTOFDetector::CoarseProcess( TClonesArray& tracks )
 {
+    for(Int_t i = 0; i < fNPlanes; i++)
+        fPlanes[i]->CoarseProcess(tracks);
+
     return 0;
 }
 

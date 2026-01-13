@@ -2,12 +2,11 @@
 #define HYPCherenkov_h
 
 // Cherenkov detector class
-
+#include <vector>
 #include "TClonesArray.h"
 #include "THaNonTrackingDetector.h"
-#include "HYPData.h"
 
-using namespace HYPData;
+using namespace std;
 
 class HYPCherenkov : public THaNonTrackingDetector {
  public:
@@ -24,6 +23,18 @@ class HYPCherenkov : public THaNonTrackingDetector {
  protected:
 
   Int_t fNHits;
+  Double_t fNpeSum;
+
+  // chan map and calibration parameters
+  class CerInfo {
+    public:
+      Int_t fPMT;
+      Int_t fSigType;
+      Double_t fAdcTimeMinCut;
+      Double_t fAdcTimeMaxCut;
+      Double_t fGain;
+};
+  std::vector<CerInfo> fCerInfo;
 
   virtual Int_t ReadDatabase( const TDatime& date );
   virtual Int_t DefineVariables( EMode mode = kDefine );
@@ -32,7 +43,8 @@ class HYPCherenkov : public THaNonTrackingDetector {
   Int_t StoreHit( const DigitizerHitInfo_t& hitinfo, UInt_t data );  
   OptUInt_t LoadData( const THaEvData& evdata, const DigitizerHitInfo_t& hitinfo );
 
-  FADCData* fFADCData;
+  TClonesArray*  fRawHits;
+  vector<UInt_t> fSampleData;
 
   ClassDef(HYPCherenkov,0)
 

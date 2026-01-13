@@ -17,14 +17,17 @@ public:
   Int_t      GetWireNum() const { return fWire->GetNum(); }
   Double_t   GetPos()     const { return fWire->GetPos(); }
   Int_t      GetAxis()    const { return fWire->GetAxis(); }
+  Int_t      GetPlaneNum() const { return fWire->GetPlaneNum(); }
   Int_t      Compare( const TObject* obj ) const;  // to sort hits
   HYPDCWire* GetWire()    const { return fWire; }
-  
+  Int_t      GetNPlaneClust() const { return fNPlaneClust; }
+
   void Print( Option_t* opt ) const;
   void SetWire(HYPDCWire* wire) { fWire = wire; }
   void SetRawTime(Double_t rawtime) { fTDC = rawtime; }
   void SetTime(Double_t time) { fTime = time; }
   void SetDist(Double_t dist) { fDist = dist; }
+  void IncreasePlaneClust() { fNPlaneClust++; }
 
 protected:
 
@@ -32,6 +35,7 @@ protected:
   UInt_t   fTDC;  // raw TDC value
   Double_t fTime; // Time corrected for time offset
   Double_t fDist; // Drift distance
+  Int_t    fNPlaneClust; // number of clusters hit is in
 
 private:
   HYPDCHit( const HYPDCHit& );

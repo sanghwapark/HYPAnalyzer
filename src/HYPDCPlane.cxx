@@ -4,6 +4,7 @@
 #include "THaEvData.h"
 #include "VarType.h"
 #include "vfTDC.h"
+#include <condition_variable>
 #include <cstdlib>
 
 using namespace std;
@@ -12,12 +13,13 @@ using namespace std;
 HYPDCPlane::HYPDCPlane( const char* name, const char* description, 
   THaDetectorBase *parent) :
   THaSubDetector(name, description, parent),
-  fNHits(0), fAxis(0)
+  fNHits(0), fAxis(0), fPlaneNum(0)
 {
   // constructor
 
   fHits = new TClonesArray("HYPDCHit", 100);
   fWires = new TClonesArray("HYPDCWire", 160);
+
 }
 
 //__________________________________________________________________
@@ -32,6 +34,10 @@ HYPDCPlane::~HYPDCPlane()
 //__________________________________________________________________
 THaAnalysisObject::EStatus HYPDCPlane::Init(const TDatime &date)
 {
+
+  if(fName.Contains("u")) SetAxis(DC::kU);
+  else if(fName.Contains("v")) SetAxis(DC::kV);
+  else if(fName.Contains("x")) SetAxis(DC::kX);
 
   EStatus status;
   if( (status = THaSubDetector::Init(date)) )
@@ -58,9 +64,11 @@ Int_t HYPDCPlane::ReadDatabase( const TDatime& date )
 
   vector<Int_t> detmap;
   Int_t nelem;
+  vector<Int_t> chanmap;
   DBRequest request[] = {
     {"detmap",  &detmap,  kIntV},
-    {"nwires",   &nelem,   kInt},
+    {"nwires",  &nelem,   kInt},
+    {"chanmap", &chanmap, kIntV},
     {nullptr}
   };
   
@@ -78,20 +86,26 @@ Int_t HYPDCPlane::ReadDatabase( const TDatime& date )
     assert(fDC->Status() == kOK);
   }
 
+  Double_t fCenter = 0.0; // Assume (0,0) center for now. Should read it from DB
+
+  // define wires
+  for(int i = 0; i < nelem; i++) {
+    Int_t wirenum = chanmap[i];
+    Double_t central_wire = nelem / 2.0; // read it from DB?
+    Double_t pos = (wirenum - central_wire) - fCenter;
+    Double_t offset = 0.0; // FIXME: tdc offset -- read from DB
+    new((*fWires)[i]) HYPDCWire(wirenum, fPlaneNum, fAxis, pos, offset);
+  }
+  
   // For vfTDC modules
   for(UInt_t i = 0; i < (UInt_t)fDetMap->GetSize(); i++ ){
     THaDetMap::Module* d = fDetMap->GetModule(i);
-    cout << "Module: " << d->crate << " " << d->slot << " " << d->GetModel() << endl;
+    // cout << "Module: " << d->crate << " " << d->slot << " " << d->GetModel() << endl;
     if( d->GetModel() == 527 )
       d->MakeTDC();
   }
 
-  // define wires
-  for(int i = 0; i < nelem; i++) {
-    Double_t pos = 0.0; // FIXME: calculate wire position 
-    Double_t offset = 0.0; // FIXME: tdc offset -- read from DB?
-    new((*fWires)[i]) HYPDCWire(i+1, fAxis, pos, offset);
-  }
+  
 
   return kOK;
 }
@@ -112,6 +126,8 @@ Int_t HYPDCPlane::ReadGeometry(FILE* file, const TDatime& date, Bool_t required)
   position[0] = 0.0;
   position[1] = 0.0;
   position[2] = 0.0;
+  
+  fCenter.SetXYZ(position[0], position[1], position[2]);
   
   fSize[0] = 1.0; 
   fSize[1] = 0.1;
@@ -152,7 +168,7 @@ Int_t HYPDCPlane::DefineVariables( EMode mode )
 //__________________________________________________________________
 void HYPDCPlane::Clear( Option_t* opt )
 {
-  cout << "HYPDCPlane::Clear" << endl;
+  // cout << "HYPDCPlane::Clear" << endl;
 
   THaSubDetector::Clear(opt);
   fNHits = 0;
@@ -182,9 +198,10 @@ Int_t HYPDCPlane::Decode( const THaEvData& evdata )
       continue;
     }
     
-    //cout << "SLOT CH lCH NHIT HIT DATA: " << hitinfo.slot << " "
+    // cout << "SLOT CH lCH NHIT HIT DATA: " << hitinfo.slot << " "
     // << hitinfo.chan << " " << hitinfo.chan << " " << hitinfo.nhit << " " << hitinfo.hit << " " << evdata.GetData(hitinfo.crate, hitinfo.slot, hitinfo.chan, hitinfo.hit) << endl;
     UInt_t chan = hitinfo.chan;
+    // In the current decoder, this is trig_time subtracted value
     UInt_t tdc = evdata.GetData(hitinfo.crate, hitinfo.slot, hitinfo.chan, hitinfo.hit);
     UInt_t tdc_opt = evdata.GetOpt(hitinfo.crate, hitinfo.slot, hitinfo.chan, hitinfo.hit);
 

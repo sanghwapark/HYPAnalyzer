@@ -21,6 +21,7 @@ set(src
   HYPTOFDetector.cxx
   HYPCherenkov.cxx  
   HYPData.cxx
+  HYPRawAdcHit.cxx
   vfTDC.cxx
 )
 
