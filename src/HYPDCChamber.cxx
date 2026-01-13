@@ -247,42 +247,46 @@ Int_t HYPDCChamber::FindSpacePoints()
           Double_t y = 0.0;
 
           HYPDCCluster* clust = nullptr;
-          if(hit1->GetAxis() == DC::kU)
+          if(hit1->GetAxis() == DC::kU){
             clust = new((*fUClusters)[nuclus++]) HYPDCCluster(x, y);
-          else if(hit1->GetAxis() == DC::kV)
+	  }
+          else if(hit1->GetAxis() == DC::kV){
             clust = new((*fVClusters)[nvclus++]) HYPDCCluster(x, y);
-          else 
+	  }
+          else {
             clust = new((*fXClusters)[nxclus++]) HYPDCCluster(x, y);
-
-            clust->AddHit(hit1);
-            clust->AddHit(hit2);
-            clust->SetCoord(hit1->GetAxis());
-
-            hit1->IncreasePlaneClust();
-            hit2->IncreasePlaneClust();
-          }
-        } // hit2
-
+	  }
+	  clust->AddHit(hit1);
+	  clust->AddHit(hit2);
+	  clust->SetCoord(hit1->GetAxis());
+	  
+	  hit1->IncreasePlaneClust();
+	  hit2->IncreasePlaneClust();
+	}
+      } // hit2
+      
       // single plane cluster
       if(hit1->GetNPlaneClust() == 0) {
           Double_t x = hit1->GetPos();
           Double_t y = 0.0;
 
           HYPDCCluster* clust;
-          if(hit1->GetAxis() == DC::kU)
+          if(hit1->GetAxis() == DC::kU){
             clust = new((*fUClusters)[nuclus++]) HYPDCCluster(x, y);
-          else if(hit1->GetAxis() == DC::kV)
+	  }
+          else if(hit1->GetAxis() == DC::kV){
             clust = new((*fVClusters)[nvclus++]) HYPDCCluster(x, y);
-          else 
+	  }
+          else {
             clust = new((*fXClusters)[nxclus++]) HYPDCCluster(x, y);
-
-            clust->AddHit(hit1);
-            clust->SetCoord(hit1->GetAxis());
-            hit1->IncreasePlaneClust();
+	  }
+	  clust->AddHit(hit1);
+	  clust->SetCoord(hit1->GetAxis());
+	  hit1->IncreasePlaneClust();
       }
     } // hit1
   }
-
+  
   // now form UX, VX pairs
   Int_t nuxclus = 0;
   for(Int_t iu = 0; iu < nuclus; iu++) {

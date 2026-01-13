@@ -24,7 +24,7 @@ namespace HYPData {
     UInt_t fTime; // Raw TDC data
     UInt_t fOpt;  // TDC mode  0: LE 1: TE
 
-    TDCHit() : fChan(kBig), fTime(kBig), fOpt(kBig) {}
+    TDCHit() : fChan(0), fTime(0), fOpt(0) {}
     TDCHit(UInt_t chan, UInt_t tdc, UInt_t tdc_opt)
       : fChan(chan), fTime(tdc), fOpt(tdc_opt) {}
   };
