@@ -4,8 +4,7 @@
     \author Brad Sawatzky
     \author Eric Pooser
 
-    Decoder module to retrieve Caen 1190 TDCs.  Based on CAEN 1190 decoding in
-    THaCodaDecoder.C in podd 1.5.   (Written by S. Malace, modified by B. Sawatzky)
+    Decoder module to retrieve vfTDCs.
 */
 
 #include "vfTDC.h"
@@ -176,17 +175,17 @@ namespace Decoder {
 	  tdc_data.chan = group*32 + chan;
 	  }
 	*/
-	tdc_data.raw = coarse*4000 + two_ns*2000 + fine*2000/124.87; // this should be the time in ps (from Tritium code)
+	tdc_data.raw = coarse*4 + two_ns*2 + fine*2/124.87; // time in ns
 	
-	if (tdc_data.raw < tdc_data.trig_time) {
-	  tdc_data.raw = tdc_data.raw + 1024*4000;
+  if (tdc_data.raw < tdc_data.trig_time) {
+	  tdc_data.raw = tdc_data.raw + 1024*4;
 	}
-	tdc_data.raw = tdc_data.raw - tdc_data.trig_time;
 
-	// cout << "Print Decoder: slot, gr, ch, tdc, trig_time: "
-	// << tdc_data.ev_hdr_slno << " " << group << " " << tdc_data.chan << " " << tdc_data.raw << " " << tdc_data.trig_time << endl;
-
-	tdc_data.status = slot_data->loadData("tdc", tdc_data.chan, tdc_data.raw, tdc_data.opt);
+  tdc_data.raw = tdc_data.raw - tdc_data.trig_time/1000.; // time in ns
+  
+  // only using LE signal for now. Need to give an option to choose? 
+  if(tdc_data.opt == 1)
+  	tdc_data.status = slot_data->loadData("tdc", tdc_data.chan, tdc_data.raw, tdc_data.opt);
 
 #ifdef WITH_DEBUG
 	if (fDebugFile)
@@ -213,10 +212,12 @@ namespace Decoder {
         if(tdc_data.chan < NTDCCHAN &&
            fNumHits[tdc_data.chan] < MAXHIT) {
           fTdcData[tdc_data.chan * MAXHIT + fNumHits[tdc_data.chan]] = tdc_data.raw;
-          fTdcOpt[tdc_data.chan * MAXHIT + fNumHits[tdc_data.chan]++] = tdc_data.opt;
-          fCoarseTime[tdc_data.chan * MAXHIT + fNumHits[tdc_data.chan]++] = coarse;
-          fFineTime[tdc_data.chan * MAXHIT + fNumHits[tdc_data.chan]++] = fine;
-          f2nsBit[tdc_data.chan * MAXHIT + fNumHits[tdc_data.chan]++] = two_ns;
+          fTdcOpt[tdc_data.chan * MAXHIT + fNumHits[tdc_data.chan]] = tdc_data.opt;
+          fCoarseTime[tdc_data.chan * MAXHIT + fNumHits[tdc_data.chan]] = coarse;
+          fFineTime[tdc_data.chan * MAXHIT + fNumHits[tdc_data.chan]] = fine;
+          f2nsBit[tdc_data.chan * MAXHIT + fNumHits[tdc_data.chan]] = two_ns;
+
+          fNumHits[tdc_data.chan]++;
         }
         if (tdc_data.status != SD_OK ) return -1;
       }

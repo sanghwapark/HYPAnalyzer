@@ -1,7 +1,10 @@
 #include "HYPDCHit.h"
+#include "THcDCTimeToDistConv.h"
 #include <iostream>
 
 using namespace std;
+
+const Double_t HYPDCHit::kBig = 1.e38; // Arbitrary large value
 
 //_______________________________________________________
 void HYPDCHit::Print( Option_t* opt ) const
@@ -13,6 +16,26 @@ void HYPDCHit::Print( Option_t* opt ) const
        << " drift="    << GetDist();
   if( *opt != 'C' )
     cout << endl;
+
+}
+
+//_______________________________________________________
+Double_t HYPDCHit::ConvertTimeToDist()
+{
+  // Converts TDC time to drift distance
+  // Takes the (estimated) slope of the track as an argument
+
+  THcDCTimeToDistConv* ttdConv = (fWire) ? fWire->GetTTDConv() : NULL;
+
+  if (ttdConv) {
+    // If a time to distance algorithm exists, use it to convert the TDC time
+    // to the drift distance
+    fDist = ttdConv->ConvertTimeToDist(fTime);
+    return fDist;
+  }
+
+  Error("ConvertTimeToDist()", "No Time to dist algorithm available");
+  return 0.0;
 
 }
 
@@ -34,10 +57,10 @@ Int_t HYPDCHit::Compare( const TObject* obj ) const
 
   Int_t myWireNum = fWire->GetNum();
   Int_t hitWireNum = hit->GetWire()->GetNum();
-//  Int_t myPlaneNum = GetPlaneNum();
-//  Int_t hitPlaneNum = hit->GetPlaneNum();
-//  if (myPlaneNum < hitPlaneNum) return -1;
-//  if (myPlaneNum > hitPlaneNum) return 1;
+  Int_t myPlaneNum = GetPlaneNum();
+  Int_t hitPlaneNum = hit->GetPlaneNum();
+  if (myPlaneNum < hitPlaneNum) return -1;
+  if (myPlaneNum > hitPlaneNum) return 1;
 
   // If planes are the same, compare wire numbers
   if (myWireNum < hitWireNum) return -1;
