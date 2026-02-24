@@ -2,13 +2,17 @@
 #define HYPCherenkov_h
 
 // Cherenkov detector class
-#include <vector>
 #include "TClonesArray.h"
 #include "THaNonTrackingDetector.h"
+#include "THcHitList.h"
+#include "THcCherenkovHit.h"
+#include <vector>
 
 using namespace std;
 
-class HYPCherenkov : public THaNonTrackingDetector {
+// base class for AC and WC Cherenkov
+
+class HYPCherenkov : public THaNonTrackingDetector, THcHitList {
  public:
   HYPCherenkov(const char* name, const char* description="",
 	    THaApparatus* apparatus = NULL);
@@ -19,32 +23,77 @@ class HYPCherenkov : public THaNonTrackingDetector {
   virtual EStatus Init( const TDatime& date );
   virtual Int_t   CoarseProcess( TClonesArray& tracks );
   virtual Int_t   FineProcess( TClonesArray& tracks );
-  
+
+  HYPCherenkov();
+
  protected:
 
-  Int_t fNHits;
+  Int_t fNhits;
+  Bool_t* fPresentP;
+
+  Int_t     fADC_RefTimeCut;
+  Int_t     fUseSampWaveform;
+  Double_t  fSampThreshold;
+  Int_t     fSampNSA;
+  Int_t     fSampNSAT;
+  Int_t     fSampNSB;
+  Int_t     fDebugAdc;
+
+  Double_t  *fAdcPosTimeWindowMin;
+  Double_t  *fAdcPosTimeWindowMax;
+  Double_t  *fAdcNegTimeWindowMin;
+  Double_t  *fAdcNegTimeWindowMax;
+
+  Double_t  *fPosGain;
+  Double_t  *fNegGain;
+
+  // FIXME: make it more generic for other detectors too
+  class FADCHitData {
+    public:
+    FADCHitData() : paddle(0), Ped(0), PulseInt(0), PulseAmp(0),
+		    PulseTime(0), Is_good_hit(0) {}
+
+    void clear() {
+      paddle = 0;
+      Ped = PulseInt = PulseAmp = PulseTime = 0.0;
+      Is_good_hit = 0;
+    }
+    Int_t  paddle;
+    Data_t Ped;
+    Data_t PulseInt;
+    Data_t PulseAmp;
+    Data_t PulseTime;
+    Int_t  Is_good_hit;
+  };
+
+  // Raw data containers
+  vector<FADCHitData> fPosDataRaw;
+  vector<FADCHitData> fNegDataRaw;
+  vector<FADCHitData> fPosData;
+  vector<FADCHitData> fNegData;
+
+  vector<FADCHitData> fPosSampDataRaw;
+  vector<FADCHitData> fNegSampDataRaw;
+  vector<FADCHitData> fPosSampData;
+  vector<FADCHitData> fNegSampData;
+
+  vector<Int_t> fPosErrorFlag;
+  vector<Int_t> fNegErrorFlag;
+
+  // Npe variables
+  Double_t fPosNpeSum;
+  Double_t fNegNpeSum;
   Double_t fNpeSum;
 
-  // chan map and calibration parameters
-  class CerInfo {
-    public:
-      Int_t fPMT;
-      Int_t fSigType;
-      Double_t fAdcTimeMinCut;
-      Double_t fAdcTimeMaxCut;
-      Double_t fGain;
-};
-  std::vector<CerInfo> fCerInfo;
+  // Save pulse data that passed the cuts
+  vector<FADCHitData> fPosDataGood;
+  vector<FADCHitData> fNegDataGood;
 
+  
   virtual Int_t ReadDatabase( const TDatime& date );
   virtual Int_t DefineVariables( EMode mode = kDefine );
-  
-  Int_t ReadGeometry( FILE* file, const TDatime& date, Bool_t required = false);
-  Int_t StoreHit( const DigitizerHitInfo_t& hitinfo, UInt_t data );  
-  OptUInt_t LoadData( const THaEvData& evdata, const DigitizerHitInfo_t& hitinfo );
 
-  TClonesArray*  fRawHits;
-  vector<UInt_t> fSampleData;
+  void DeleteArrays();
 
   ClassDef(HYPCherenkov,0)
 
