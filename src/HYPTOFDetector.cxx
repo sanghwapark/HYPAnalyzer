@@ -1,4 +1,11 @@
 #include "HYPTOFDetector.h"
+#include "HYPTOFPlane.h"
+#include "THaApparatus.h"
+#include "VarDef.h"
+#include "VarType.h"
+#include "THcParmList.h"
+#include "THcGlobals.h"
+#include "THcDetectorMap.h"
 
 #include <iostream>
 
@@ -9,7 +16,7 @@ HYPTOFDetector::HYPTOFDetector( const char* name, const char* description,
     THaApparatus* apparatus) :
     THaNonTrackingDetector(name, description, apparatus)
 {
-    fNPlanes = 1;
+    fNPlanes = 0;
 }
 
 //____________________________________________________________________________________
@@ -24,23 +31,65 @@ HYPTOFDetector::~HYPTOFDetector()
 //____________________________________________________________________________________
 void HYPTOFDetector::Clear( Option_t* opt )
 {
-    fNHits = 0;
+    fNhits = 0;
 
 }
 
 //____________________________________________________________________________________
 THaAnalysisObject::EStatus HYPTOFDetector::Init( const TDatime & date )
 {
- 
+     // Init subdetectors
+    char prefix[2];
+    prefix[0] = tolower(GetApparatus()->GetName()[0]);
+    prefix[1] = '\0';
+    Bool_t optional = true;
+
+    string planenamelist;
+    DBRequest list[] = {
+        {"tof_num_planes",  &fNPlanes, kInt},
+        {"tof_plane_names", &planenamelist, kString},
+        {"tof_tdcrefcut",   &fTDC_RefTimeCut, kInt, 0, optional},
+        {"tof_adcrefcut",   &fADC_RefTimeCut, kInt, 0, optional},
+        {nullptr}
+    };
+
+    fTDC_RefTimeCut = 0;
+    fADC_RefTimeCut = 0;
+
+    gHcParms->LoadParmValues((DBRequest*)&list, prefix);
+
+    vector<string> plane_names = Podd::vsplit(planenamelist);
+    if(plane_names.size() != (UInt_t) fNPlanes) {
+        cout << "ERROR: Number of planes " << fNPlanes << " doesn't agree with number of plane names " << plane_names.size() << endl;
+        return kInitError;
+    }
+
+    for(Int_t i = 0; i < fNPlanes; i++) {
+        HYPTOFPlane* newplane = new HYPTOFPlane(plane_names[i].c_str(), Form("TOF Plane %s", plane_names[i].c_str()), i+1, this);
+        fPlanes.push_back(newplane);
+    }
+
+    // In detector map, the detector ID should be defined 
+    // e.g. KDC is for HKS DC
+    char DID[] = "xTOF";
+    DID[0] = toupper(GetApparatus()->GetName()[0]);
+    if( gHcDetectorMap->FillMap(fDetMap, DID) < 0 ){
+        static const char* here = "Init()";
+        Error( Here(here), "Error filling detectormap for %s.", DID );
+        return kInitError;
+    }
+
+    InitHitList(fDetMap, "THcRawHodoHit", fDetMap->GetTotNumChan()+1,
+        fTDC_RefTimeCut, fADC_RefTimeCut);
+
     EStatus status;       
     if ((status = THaNonTrackingDetector::Init(date)))
         return fStatus = status;
 
-    // Init sub detectors
-    for(auto &plane : fPlanes) {
-        status = plane->Init(date);
-        if(status != kOK)
-            return fStatus = status;
+    fPresentP = 0;
+    THaVar* vpresent = gHaVars->Find(Form("%s.present",GetApparatus()->GetName()));
+    if(vpresent) {
+        fPresentP = (Bool_t *) vpresent->GetValuePointer();
     }
 
     return fStatus = kOK;
@@ -50,39 +99,25 @@ THaAnalysisObject::EStatus HYPTOFDetector::Init( const TDatime & date )
 Int_t HYPTOFDetector::Decode( const THaEvData& evdata )
 {        
     // cout << "HYPTOFDetector::Decode" << endl;
-    // Decode for all planes
-    for(Int_t i = 0; i < fNPlanes; i++)
-        fPlanes[i]->Decode(evdata);
+    Bool_t present = kTRUE;  // suppress reference time warnings
+    if(fPresentP) {          // if this spectrometer not part of trigger
+        present = *fPresentP;
+    }
+    
+    fNhits = DecodeToHitList(evdata, !present);
 
-    return 0;
+    Int_t nexthit = 0;
+    for(Int_t ip = 0; ip < fNPlanes; ip++) {
+        nexthit = fPlanes[ip]->ProcessHits(fRawHitList, nexthit);
+    }
+
+    return fNhits;
 }
 
 //____________________________________________________________________________________
 Int_t HYPTOFDetector::ReadDatabase( const TDatime & date )
 {
     // cout << "HYPTOFDetector::ReadDatabase" << endl;
-
-    FILE* file = OpenFile( date );
-    if( !file ) return kFileError;
-
-    string plane_names;
-    DBRequest request[] = {
-        {"nplanes", &fNPlanes, kInt},
-        {"names",   &plane_names, kString},
-        {nullptr}
-    };
-
-    Int_t err = LoadDB(file, date, request);
-    if(err) {
-        fclose(file);
-        return err;
-    }
-
-    // Define TOF planes
-    for(Int_t i = 0; i < fNPlanes; i++) {
-        HYPTOFPlane* new_plane = new HYPTOFPlane(Form("tof%d",i), Form("tof%d", i), i, this);
-        fPlanes.push_back(new_plane);
-    }
     return 0;
 }
 //____________________________________________________________________________________
@@ -94,8 +129,6 @@ Int_t HYPTOFDetector::DefineVariables( EMode mode)
 //____________________________________________________________________________________
 Int_t HYPTOFDetector::CoarseProcess( TClonesArray& tracks )
 {
-    for(Int_t i = 0; i < fNPlanes; i++)
-        fPlanes[i]->CoarseProcess(tracks);
 
     return 0;
 }

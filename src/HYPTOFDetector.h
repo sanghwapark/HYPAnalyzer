@@ -4,10 +4,11 @@
 #include "TClonesArray.h"
 #include "THaNonTrackingDetector.h"
 #include "HYPTOFPlane.h"
+#include "THcHitList.h"
 #include <vector>
 
 
-class HYPTOFDetector : public THaNonTrackingDetector {
+class HYPTOFDetector : public THaNonTrackingDetector, THcHitList {
  public:
   HYPTOFDetector(const char* name, const char* description="",
 	    THaApparatus* apparatus = NULL);
@@ -24,9 +25,14 @@ class HYPTOFDetector : public THaNonTrackingDetector {
   protected:
 
   Int_t  fNPlanes;
-  Int_t  fNHits;
+  Int_t  fNhits;
+  Bool_t *fPresentP;
 
-  std::vector<HYPTOFPlane *> fPlanes;
+  Int_t fADC_RefTimeCut;
+  Int_t fTDC_RefTimeCut;
+
+
+  std::vector<HYPTOFPlane*> fPlanes;
  
   virtual Int_t ReadDatabase( const TDatime& date );
   virtual Int_t DefineVariables( EMode mode = kDefine );
