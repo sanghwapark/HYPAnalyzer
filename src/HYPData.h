@@ -1,62 +1,41 @@
 #ifndef HYPDATA_h
 #define HYPDATA_h
 
-#include "THaDetMap.h"
 #include "DataType.h"
-#include <vector>
 
-// HYP raw data obj: FADC250 and vfTDC
+// HYP raw data obj: FADC250 and vfTDC/VECTOR TDC
 
 namespace HYPData {
 
-  struct FADCHit {
-    UInt_t fChan;
-    UInt_t fPulseIntegral;
-    UInt_t fPulsePeak;
-    UInt_t fPulseTime;
-    UInt_t fPedestal;    
-    UInt_t fCoarseTime;
-    UInt_t fFineTime;
+class FADCHitData {
+    public:
+    FADCHitData() : paddle(0), Ped(0), PulseInt(0), PulseAmp(0),
+		    PulseTime(0), Is_good_hit(0) {}
+
+    void clear() {
+      paddle = 0;
+      Ped = PulseInt = PulseAmp = PulseTime = 0.0;
+      Is_good_hit = 0;
+    }
+    Int_t  paddle;
+    Data_t Ped;
+    Data_t PulseInt;
+    Data_t PulseAmp;
+    Data_t PulseTime;
+    Int_t  Is_good_hit;
   };
 
-  struct TDCHit {
-    UInt_t fChan; // channel number
-    UInt_t fTime; // Raw TDC data
-    UInt_t fOpt;  // TDC mode  0: LE 1: TE
+class TDCData {
+  public:
+    TDCData(Int_t padnum, Int_t time_raw, Int_t time_cor, Int_t good_hit) :
+      paddle(padnum), TimeRaw(time_raw), Time(time_cor), Is_good_hit(good_hit) {}
+    TDCData() : paddle(0), TimeRaw(0), Time(0), Is_good_hit(0) {}
 
-    TDCHit() : fChan(0), fTime(0), fOpt(0) {}
-    TDCHit(UInt_t chan, UInt_t tdc, UInt_t tdc_opt)
-      : fChan(chan), fTime(tdc), fOpt(tdc_opt) {}
-  };
-
-  // FADC config parameters
-  struct FADCConfig {
-    UInt_t NSA;
-    UInt_t NSB;
-    UInt_t NPED;
-  };
-  
-  class FADCData {
-  public:  
-    FADCData() : fNHits(0) {}
-    
-    virtual ~FADCData() {}
-
-    Int_t      AddHit( const DigitizerHitInfo_t& hitinfo );
-    Int_t      Decode( const THaEvData& evdata, THaDetMap::Module *d );
-    Int_t      GetNHits()          { return fNHits; }
-    size_t     GetSize()     const { return fPulseData.size(); }
-    FADCHit&   GetData( size_t i ) { return fPulseData[i]; }
-    std::vector<uint32_t>& GetSampleData() { return fSampleData; }
-    std::vector<FADCHit>&  GetPulseData() { return fPulseData; }
-    void       Clear();
-
-  protected:  
-    Int_t fNHits;
-
-    std::vector<FADCHit>  fPulseData;
-    std::vector<uint32_t> fSampleData;  
-  };
+    Int_t  paddle;
+    Int_t  TimeRaw;
+    Int_t  Time; // Ref time subtracted  
+    Int_t  Is_good_hit;
+};
 
 }
 
