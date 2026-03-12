@@ -262,29 +262,29 @@ Int_t HYPCherenkov::Decode( const THaEvData& evdata )
     Int_t errorflag = -1;
     if ( fUseSampWaveform == 0 ) {
       for (UInt_t thit = 0; thit < rawPosAdcHit.GetNPulses(); thit++) {
-	FADCHitData posdata_raw;
-	FADCHitData posdata;
+        FADCHitData posdata_raw;
+        FADCHitData posdata;
 
-	posdata_raw.paddle = npmt;
-	posdata_raw.Ped = rawPosAdcHit.GetPedRaw();
-	posdata_raw.PulseInt = rawPosAdcHit.GetPulseIntRaw(thit);
-	posdata_raw.PulseAmp = rawPosAdcHit.GetPulseAmpRaw(thit);
-	posdata_raw.PulseTime = rawPosAdcHit.GetPulseTimeRaw(thit);
-       
-	posdata.paddle = npmt;
-	posdata.Ped = rawPosAdcHit.GetPed();
-	posdata.PulseInt = rawPosAdcHit.GetPulseInt(thit);
-	posdata.PulseAmp = rawPosAdcHit.GetPulseAmp(thit);
-	posdata.PulseTime = rawPosAdcHit.GetPulseTime(thit);
+        posdata_raw.paddle = npmt;
+        posdata_raw.Ped = rawPosAdcHit.GetPedRaw();
+        posdata_raw.PulseInt = rawPosAdcHit.GetPulseIntRaw(thit);
+        posdata_raw.PulseAmp = rawPosAdcHit.GetPulseAmpRaw(thit);
+        posdata_raw.PulseTime = rawPosAdcHit.GetPulseTimeRaw(thit);
+            
+        posdata.paddle = npmt;
+        posdata.Ped = rawPosAdcHit.GetPed();
+        posdata.PulseInt = rawPosAdcHit.GetPulseInt(thit);
+        posdata.PulseAmp = rawPosAdcHit.GetPulseAmp(thit);
+        posdata.PulseTime = rawPosAdcHit.GetPulseTime(thit);
 
-	if(posdata_raw.PulseAmp > 0)  errorflag = 0;
-	if(posdata_raw.PulseAmp <= 0) errorflag = 1;
-	if(posdata_raw.PulseAmp <= 0 && rawPosAdcHit.GetNSamples() > 0) errorflag = 2;
+        if(posdata_raw.PulseAmp > 0)  errorflag = 0;
+        if(posdata_raw.PulseAmp <= 0) errorflag = 1;
+        if(posdata_raw.PulseAmp <= 0 && rawPosAdcHit.GetNSamples() > 0) errorflag = 2;
 
-	fPosDataRaw.emplace_back(posdata_raw);
-	fPosData.emplace_back(posdata);
-	fPosErrorFlag.emplace_back(errorflag);
-	// FIXME: Do we want to add an option to use pedestal from DB
+        fPosDataRaw.emplace_back(posdata_raw);
+        fPosData.emplace_back(posdata);
+        fPosErrorFlag.emplace_back(errorflag);
+        // FIXME: Do we want to add an option to use pedestal from DB
       }
     }// Using Pulse Data
 
@@ -325,7 +325,7 @@ Int_t HYPCherenkov::Decode( const THaEvData& evdata )
 
           fPosDataRaw.emplace_back(possampdata_raw);
           fPosData.emplace_back(possampdata);
-	  fPosErrorFlag.emplace_back(errorflag);
+	        fPosErrorFlag.emplace_back(errorflag);
         }
       }// samp pulse loop
     }
@@ -394,7 +394,7 @@ Int_t HYPCherenkov::Decode( const THaEvData& evdata )
 
           fNegDataRaw.emplace_back(negsampdata_raw);
           fNegData.emplace_back(negsampdata);
-	  fNegErrorFlag.emplace_back(errorflag);
+	        fNegErrorFlag.emplace_back(errorflag);
         }
       }// samp pulse loop
     }// Negative PMT

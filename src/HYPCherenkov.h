@@ -6,9 +6,11 @@
 #include "THaNonTrackingDetector.h"
 #include "THcHitList.h"
 #include "THcCherenkovHit.h"
+#include "HYPData.h"
 #include <vector>
 
 using namespace std;
+using namespace HYPData;
 
 // base class for AC and WC Cherenkov
 
@@ -46,25 +48,6 @@ class HYPCherenkov : public THaNonTrackingDetector, THcHitList {
 
   Double_t  *fPosGain;
   Double_t  *fNegGain;
-
-  // FIXME: make it more generic for other detectors too
-  class FADCHitData {
-    public:
-    FADCHitData() : paddle(0), Ped(0), PulseInt(0), PulseAmp(0),
-		    PulseTime(0), Is_good_hit(0) {}
-
-    void clear() {
-      paddle = 0;
-      Ped = PulseInt = PulseAmp = PulseTime = 0.0;
-      Is_good_hit = 0;
-    }
-    Int_t  paddle;
-    Data_t Ped;
-    Data_t PulseInt;
-    Data_t PulseAmp;
-    Data_t PulseTime;
-    Int_t  Is_good_hit;
-  };
 
   // Raw data containers
   vector<FADCHitData> fPosDataRaw;
