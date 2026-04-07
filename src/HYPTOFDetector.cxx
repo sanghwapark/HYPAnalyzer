@@ -38,7 +38,8 @@ void HYPTOFDetector::Clear( Option_t* opt )
 //____________________________________________________________________________________
 THaAnalysisObject::EStatus HYPTOFDetector::Init( const TDatime & date )
 {
-     // Init subdetectors
+    cout << "HYPTOFDetector::Init" << endl;
+    // Init subdetectors
     char prefix[2];
     prefix[0] = tolower(GetApparatus()->GetName()[0]);
     prefix[1] = '\0';
@@ -71,11 +72,11 @@ THaAnalysisObject::EStatus HYPTOFDetector::Init( const TDatime & date )
 
     // In detector map, the detector ID should be defined 
     // e.g. KDC is for HKS DC
-    char DID[] = "xTOF";
-    DID[0] = toupper(GetApparatus()->GetName()[0]);
-    if( gHcDetectorMap->FillMap(fDetMap, DID) < 0 ){
-        static const char* here = "Init()";
-        Error( Here(here), "Error filling detectormap for %s.", DID );
+    string EngineDID = string(GetApparatus()->GetName()).substr(0, 1) + GetName();
+    std::transform(EngineDID.begin(), EngineDID.end(), EngineDID.begin(), ::toupper);
+    if(gHcDetectorMap->FillMap(fDetMap, EngineDID.c_str()) < 0) {
+        static const char* const here = "Init()";
+        Error(Here(here), "Error filling detectormap for %s.", EngineDID.c_str());
         return kInitError;
     }
 
@@ -85,6 +86,12 @@ THaAnalysisObject::EStatus HYPTOFDetector::Init( const TDatime & date )
     EStatus status;       
     if ((status = THaNonTrackingDetector::Init(date)))
         return fStatus = status;
+
+    for(Int_t ip=0;ip<fNPlanes;ip++) {
+        if((status = fPlanes[ip]->Init( date ))) {
+            return fStatus=status;
+        }
+    }
 
     fPresentP = 0;
     THaVar* vpresent = gHaVars->Find(Form("%s.present",GetApparatus()->GetName()));
@@ -98,7 +105,7 @@ THaAnalysisObject::EStatus HYPTOFDetector::Init( const TDatime & date )
 //____________________________________________________________________________________
 Int_t HYPTOFDetector::Decode( const THaEvData& evdata )
 {        
-    // cout << "HYPTOFDetector::Decode" << endl;
+    //cout << "HYPTOFDetector::Decode" << endl;
     Bool_t present = kTRUE;  // suppress reference time warnings
     if(fPresentP) {          // if this spectrometer not part of trigger
         present = *fPresentP;

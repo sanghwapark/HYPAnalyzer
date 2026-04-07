@@ -26,6 +26,8 @@ class HYPTOFPlane : public THaSubDetector{
 
   protected:
 
+    Int_t fPlaneNum;
+    
     Int_t fDebugADC;
     Int_t fUseSampWaveform;
     Int_t fOutputSampWaveform;
@@ -60,6 +62,13 @@ class HYPTOFPlane : public THaSubDetector{
     Double_t fTdcRefDiffTime[2];
     Double_t fAdcRefTime[2];
     Double_t fAdcRefDiffTime[2];
+
+    // Parameters from parent detector
+    Int_t fTdcOffset;
+    Double_t fAdcTdcOffset;
+    Double_t fScinTdcMin;
+    Double_t fScinTdcMax;
+    Double_t fScinTdcToTime;
 
     Int_t ReadDatabase( const TDatime &date );
     Int_t DefineVariables( EMode mode = kDefine );

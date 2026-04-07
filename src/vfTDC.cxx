@@ -175,14 +175,15 @@ namespace Decoder {
 	  tdc_data.chan = group*32 + chan;
 	  }
 	*/
-	tdc_data.raw = coarse*4 + two_ns*2 + fine*2/124.87; // time in ns
-	
+	tdc_data.raw = coarse*4 + two_ns*2 + fine*2/124.87; // time in ps
+
+/*
   if (tdc_data.raw < tdc_data.trig_time) {
 	  tdc_data.raw = tdc_data.raw + 1024*4;
 	}
+*/
+  tdc_data.raw = tdc_data.raw - tdc_data.trig_time/1000.; // time in ns*/
 
-  tdc_data.raw = tdc_data.raw - tdc_data.trig_time/1000.; // time in ns
-  
   // only using LE signal for now. Need to give an option to choose? 
   if(tdc_data.opt == 1)
   	tdc_data.status = slot_data->loadData("tdc", tdc_data.chan, tdc_data.raw, tdc_data.opt);

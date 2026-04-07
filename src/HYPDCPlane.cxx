@@ -137,11 +137,13 @@ Int_t HYPDCPlane::ReadDatabase( const TDatime& date )
     fTzeroWire[i] = 0.0;
   }
 
-  DBRequest list3[] = {
-    {Form("tzero%s", GetName()), fTzeroWire, kDouble, static_cast<UInt_t>(fNWires)},
-    {nullptr}
-  };
-  gHcParms->LoadParmValues((DBRequest*)&list3,prefix);
+  if(fUsingTzeroPerWire) {
+    DBRequest list3[] = {
+      {Form("tzero%s", GetName()), fTzeroWire, kDouble, static_cast<UInt_t>(fNWires)},
+      {nullptr}
+    };
+    gHcParms->LoadParmValues((DBRequest*)&list3,prefix);
+  }
 
   // Calculate geometry parameters
   Double_t z0 = fParent->GetZPos(fPlaneNum);

@@ -23,6 +23,7 @@ set(src
   HYPCherenkov.cxx  
   HYPRawAdcHit.cxx
   vfTDC.cxx
+  VETROC.cxx
   DCDetector.cxx
 )
 
