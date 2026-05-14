@@ -137,11 +137,13 @@ Int_t HYPDCPlane::ReadDatabase( const TDatime& date )
     fTzeroWire[i] = 0.0;
   }
 
-  DBRequest list3[] = {
-    {Form("tzero%s", GetName()), fTzeroWire, kDouble, static_cast<UInt_t>(fNWires)},
-    {nullptr}
-  };
-  gHcParms->LoadParmValues((DBRequest*)&list3,prefix);
+  if(fUsingTzeroPerWire) {
+    DBRequest list3[] = {
+      {Form("tzero%s", GetName()), fTzeroWire, kDouble, static_cast<UInt_t>(fNWires)},
+      {nullptr}
+    };
+    gHcParms->LoadParmValues((DBRequest*)&list3,prefix);
+  }
 
   // Calculate geometry parameters
   Double_t z0 = fParent->GetZPos(fPlaneNum);
@@ -238,12 +240,14 @@ if( mode == kDefine && fIsSetup ) return kOK;
   RVarDef vars[] = {
     {"raw.wirenum", "List of TDC wire number of all hits in DC",
      "fRawHits.HYPDCHit.GetWireNum()"},
+    {"raw.timeraw", "Raw time with trigger time subtracted, in ns",
+     "fRawHits.HYPDCHit.GetRawTime()"},
+    {"raw.time", "Raw time with reference time subtracted, in ns",
+     "fRawHits.HYPDCHit.GetTime()"},
     {"wirenum", "List of TDC wire number (select first hit in TDc window",
      "fHits.HYPDCHit.GetWireNum()"},
     {"timeraw", "Raw time with trigger time subtracted, in ns",
      "fHits.HYPDCHit.GetRawTime()"},
-    {"raw.refcortime", "Raw time with reference time subtracted Values, in ns",
-     "fRawHits.HYPDCHit.GetRefCorrTime()"},
     {"refcortime", "Raw time with reference time subtracted Values, in ns",
      "fHits.HYPDCHit.GetRefCorrTime()"},
     {"time","Drift time",
@@ -315,8 +319,10 @@ Int_t HYPDCPlane::ProcessHits(TClonesArray* rawhits, Int_t nexthit)
       /* Sort into early, late and ontime */
       Int_t rawtime = hit->GetRawTdcHit().GetTimeRaw(mhit); // rawtime in ns
       Int_t refcortime = hit->GetRawTdcHit().GetTime(mhit); // ref time subtracted time
-      Double_t time = refcortime; // FIXME: add time offset and other corr as needed
-      //Double_t time = - rawtdc*fNSperChan + fPlaneTimeZero - wire->GetTOffset(); // fNSperChan > 0 for 1877
+      if(refcortime < 0) refcortime = refcortime + 1024*4;
+
+      Double_t time = refcortime - fPlaneTimeZero - wire->GetTOffset();
+
       new( (*fRawHits)[nextRawHit++] ) HYPDCHit(wire, rawtime, refcortime, time, this);	
       if(rawtime >= fTdcWinMin && rawtime <= fTdcWinMax) {
       	if (First_Hit_In_Window) {

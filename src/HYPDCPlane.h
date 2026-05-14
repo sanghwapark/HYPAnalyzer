@@ -14,7 +14,7 @@ class THcDCTimeToDistConv;
 using namespace std;
 
 namespace DC {
-  enum Axis{ kX = 0, kU, kV, kUX, kVX};
+  enum Axis{ kX = 0, kU, kV};
 }
  
 class HYPDCPlane : public THaSubDetector {
@@ -41,8 +41,8 @@ class HYPDCPlane : public THaSubDetector {
 
     Int_t         GetNWires()      const { return fWires->GetLast()+1; }
     THcDCWire*    GetWire(Int_t i) const 
-    { assert( i>=0 && i<=GetNWires() );
-      return (THcDCWire*)fWires->UncheckedAt(i); }
+    { assert( i>=1 && i<=GetNWires() );
+      return (THcDCWire*)fWires->UncheckedAt(i-1); }
 
     Int_t        GetPlaneNum() const { return fPlaneNum; }
     Int_t        GetChamberNum() const { return fChamberNum; }

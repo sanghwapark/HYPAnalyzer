@@ -38,6 +38,7 @@ class HYPDC : public THaTrackingDetector, public THcHitList {
   Double_t GetBetaAngle(Int_t plane)   const { return fBetaAngle[plane-1];}
   Double_t GetGammaAngle(Int_t plane)  const { return fGammaAngle[plane-1];}
 
+  Int_t    GetMinPlanes(Int_t chamber) const { return fMinPlanes[chamber-1];}
   Int_t    GetMinHits(Int_t chamber)   const { return fMinHits[chamber-1];}
   Int_t    GetMaxHits(Int_t chamber)   const { return fMaxHits[chamber-1];}
   Int_t    GetMinCombos(Int_t chamber) const { return fMinCombos[chamber-1];}
@@ -105,6 +106,7 @@ class HYPDC : public THaTrackingDetector, public THcHitList {
   Double_t fYtTrCriterion;
   Double_t fXptTrCriterion;
   Double_t fYptTrCriterion;
+  Int_t fSpacePointMode;
   Int_t fUseNewLinkStubs;
   Int_t fUseNewTrackFit; 
   Int_t fVersion;
@@ -112,6 +114,7 @@ class HYPDC : public THaTrackingDetector, public THcHitList {
   // Each of these will be dimensioned with the number of chambers
   Double_t* fXCenter;
   Double_t* fYCenter;
+  Int_t* fMinPlanes;
   Int_t* fMinHits;
   Int_t* fMaxHits;
   Int_t* fMinCombos;

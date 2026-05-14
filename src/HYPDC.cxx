@@ -27,12 +27,13 @@ using namespace std;
 
 //________________________________________________________________
 HYPDC::HYPDC(const char* name, const char* description,
-       THaApparatus* apparatus) :
+	     THaApparatus* apparatus) :
   THaTrackingDetector(name, description, apparatus)
 {
   fNPlanes = 0;
   fXCenter = nullptr;
   fYCenter = nullptr;
+  fMinPlanes = nullptr;
   fMinHits = nullptr;
   fMaxHits = nullptr;
   fMinCombos = nullptr;
@@ -95,6 +96,7 @@ void HYPDC::DeleteArrays()
 
   delete [] fXCenter;   fXCenter = nullptr;
   delete [] fYCenter;   fYCenter = nullptr;
+  delete [] fMinPlanes; fMinPlanes = nullptr;
   delete [] fMinHits;   fMinHits = nullptr;
   delete [] fMaxHits;   fMaxHits = nullptr;
   delete [] fMinCombos;   fMinCombos = nullptr;
@@ -150,7 +152,7 @@ HYPDC::HYPDC() :
 void HYPDC::Setup(const char* name, const char* description)
 {
 
-	Bool_t optional = true;
+  Bool_t optional = true;
 
   // Create the chamber and plane objects using parameters.
   static const char* const here = "Setup";
@@ -334,6 +336,7 @@ Int_t HYPDC::ReadDatabase( const TDatime& date )
 
   delete [] fXCenter;  fXCenter = new Double_t [fNChambers];
   delete [] fYCenter;  fYCenter = new Double_t [fNChambers];
+  delete [] fMinPlanes; fMinPlanes = new Int_t [fNChambers];
   delete [] fMinHits;  fMinHits = new Int_t [fNChambers];
   delete [] fMaxHits;  fMaxHits = new Int_t [fNChambers];
   delete [] fMinCombos;  fMinCombos = new Int_t [fNChambers];
@@ -368,6 +371,7 @@ Int_t HYPDC::ReadDatabase( const TDatime& date )
 
     {"dc_xcenter", fXCenter, kDouble, fNChambers},
     {"dc_ycenter", fYCenter, kDouble, fNChambers},
+    {"min_planes", fMinPlanes, kInt, fNChambers},
     {"min_hit", fMinHits, kInt, fNChambers},
     {"max_pr_hits", fMaxHits, kInt, fNChambers},
     {"min_combos", fMinCombos, kInt, fNChambers},
@@ -397,6 +401,7 @@ Int_t HYPDC::ReadDatabase( const TDatime& date )
     {"yt_track_criterion", &fYtTrCriterion, kDouble},
     {"xpt_track_criterion", &fXptTrCriterion, kDouble},
     {"ypt_track_criterion", &fYptTrCriterion, kDouble},
+    {"FindSpacePointMode", &fSpacePointMode, kInt, 0, true},
     {"UseNewLinkStubs", &fUseNewLinkStubs, kInt,0,true},
     {"UseNewTrackFit", &fUseNewTrackFit, kInt,0,true},
     {"debuglinkstubs", &fdebuglinkstubs, kInt},
@@ -409,6 +414,7 @@ Int_t HYPDC::ReadDatabase( const TDatime& date )
     {nullptr}
   };
 
+  fSpacePointMode = 1;
   fTrackLargeResidCut = -1;
   fUseNewLinkStubs = 0;
   fUseNewTrackFit=0;
@@ -417,24 +423,24 @@ Int_t HYPDC::ReadDatabase( const TDatime& date )
   for(Int_t ip=0; ip<fNPlanes;ip++) {
     fReadoutLR[ip] = 0.0;
     fReadoutTB[ip] = 0.0;
-   }
+  }
 
   gHcParms->LoadParmValues((DBRequest*)&list,fPrefix);
 
   //Set the default plane x,y positions to those of the chamber
-   for(Int_t ip=0; ip<fNPlanes;ip++) {
+  for(Int_t ip=0; ip<fNPlanes;ip++) {
     fXPos[ip] = fXCenter[GetNChamber(ip+1)-1];
     fYPos[ip] = fYCenter[GetNChamber(ip+1)-1];
-   }
+  }
 
   //Load the x,y positions of the planes if they exist (overwrites defaults)
-   DBRequest listOpt[]={
-     {"dc_xpos", fXPos, kDouble, (UInt_t)fNPlanes, optional},
-     {"dc_ypos", fYPos, kDouble, (UInt_t)fNPlanes, optional},
-     {nullptr}
-   };
+  DBRequest listOpt[]={
+    {"dc_xpos", fXPos, kDouble, (UInt_t)fNPlanes, optional},
+    {"dc_ypos", fYPos, kDouble, (UInt_t)fNPlanes, optional},
+    {nullptr}
+  };
 
-   gHcParms->LoadParmValues((DBRequest*)&listOpt,fPrefix);
+  gHcParms->LoadParmValues((DBRequest*)&listOpt,fPrefix);
 
   if(fNTracksMaxFP <= 0) fNTracksMaxFP = 10;
 
@@ -528,10 +534,10 @@ Int_t HYPDC::Decode( const THaEvData& evdata )
       for(UInt_t ihit = 0; ihit < fNRawHits ; ihit++) {
 
       	auto* hit = (THcRawDCHit *) fRawHitList->At(ihit);
-	      for(UInt_t imhit = 0; imhit < hit->GetRawTdcHit().GetNHits(); imhit++) {
-	        counter++;
-	        cout << counter << "      " << hit->fPlane << "     " << hit->fCounter << "     " << hit->GetRawTdcHit().GetTimeRaw(imhit)	   << endl;
-	      }
+	for(UInt_t imhit = 0; imhit < hit->GetRawTdcHit().GetNHits(); imhit++) {
+	  counter++;
+	  cout << counter << "      " << hit->fPlane << "     " << hit->fCounter << "     " << hit->GetRawTdcHit().GetTimeRaw(imhit)	   << endl;
+	}
       }
       cout << endl;
     }
@@ -566,7 +572,12 @@ Int_t HYPDC::CoarseTrack( TClonesArray& tracks )
 
   // plane clustering, space point, stub finding
   for(UInt_t i = 0; i < fNChambers; i++) {
-    fChambers[i]->FindSpacePoints();
+
+    if(fSpacePointMode == 0)
+      fChambers[i]->FindSpacePointsClus();
+    else // FindHardSpacePoint
+      fChambers[i]->FindSpacePoints();
+
     fChambers[i]->CorrectHitTimes();
     fChambers[i]->LeftRight(); // find stub
   }
@@ -582,7 +593,7 @@ Int_t HYPDC::CoarseTrack( TClonesArray& tracks )
   }
 
   if(fNDCTracks > 0) {
-   if (!fUseNewTrackFit)  TrackFit();
+    if (!fUseNewTrackFit)  TrackFit();
     // Copy tracks into podd tracks list
     for(UInt_t itrack = 0; itrack < fNDCTracks; itrack++) {
       if (fUseNewTrackFit)  NewTrackFit(itrack);
@@ -600,13 +611,13 @@ Int_t HYPDC::CoarseTrack( TClonesArray& tracks )
       theTrack->SetTrkNum(itrack+1);
     }
     if (fdebugtrackprint) PrintTrack();
- }
+  }
 
-// FIXME: Target quantity calculations need to be reviewed and implemented
-/*
- if(fNDCTracks > 0) {
-   THcHallCSpectrometer *spectro = dynamic_cast<THcHallCSpectrometer*>(GetApparatus());
-  for (Int_t it=0;it<tracks.GetLast()+1;it++) {
+  // FIXME: Target quantity calculations need to be reviewed and implemented
+  /*
+    if(fNDCTracks > 0) {
+    THcHallCSpectrometer *spectro = dynamic_cast<THcHallCSpectrometer*>(GetApparatus());
+    for (Int_t it=0;it<tracks.GetLast()+1;it++) {
     THaTrack* track = static_cast<THaTrack*>( tracks[it] );
     Double_t xptar=kBig,yptar=kBig,ytar=kBig,delta=kBig;
     Double_t xtar=0;
@@ -624,9 +635,9 @@ Int_t HYPDC::CoarseTrack( TClonesArray& tracks )
     TVector3 pvect_temp;
     spectro->TransportToLab(track->GetP(),track->GetTTheta(),track->GetTPhi(),pvect_temp);
     track->SetPvect(pvect_temp);
-  }
- }
- */
+    }
+    }
+  */
   return 0;
 }
 
@@ -634,18 +645,18 @@ Int_t HYPDC::CoarseTrack( TClonesArray& tracks )
 void HYPDC::LinkStubs()
 {
   /**
-       The logic is
-                    0) Put all space points in a single list
-                    1) loop over all space points as seeds  isp1
-                    2) Check if this space point is all ready in a track
-                    3) loop over all succeeding space pointss   isp2
-                    4)  check if there is a track-criterion match
-                         either add to existing track
-                         or if there is another point in same chamber
-                            make a copy containing isp2 rather than
-                              other point in same chamber
-                    5) If hsingle_stub is set, make a track of all single
-                       stubs.
+     The logic is
+     0) Put all space points in a single list
+     1) loop over all space points as seeds  isp1
+     2) Check if this space point is all ready in a track
+     3) loop over all succeeding space pointss   isp2
+     4)  check if there is a track-criterion match
+     either add to existing track
+     or if there is another point in same chamber
+     make a copy containing isp2 rather than
+     other point in same chamber
+     5) If hsingle_stub is set, make a track of all single
+     stubs.
   */
 
   // cout << "HYPDC::LinkStubs" << endl;
@@ -686,18 +697,18 @@ void HYPDC::LinkStubs()
       Int_t tryflag = 1;
       for(UInt_t itrack=0;itrack<fNDCTracks;itrack++) {
       	HYPDCTrack *theDCTrack = static_cast<HYPDCTrack*>( fDCTracks->At(itrack));
-	      for(Int_t isp=0;isp<theDCTrack->GetNSpacePoints();isp++) {
-	        // isp is index into list of space points attached to theDCTrack
-	        if(theDCTrack->GetSpacePoint(isp) == sp1) {
-	          tryflag=0;
-	        }
-	      }
+	for(Int_t isp=0;isp<theDCTrack->GetNSpacePoints();isp++) {
+	  // isp is index into list of space points attached to theDCTrack
+	  if(theDCTrack->GetSpacePoint(isp) == sp1) {
+	    tryflag=0;
+	  }
+	}
       }
       if(tryflag) { // SP not already part of a track
       	Int_t newtrack = 1;
-	      for(Int_t isp2 = isp1+1; isp2 <fNSp; isp2++) {
+	for(Int_t isp2 = isp1+1; isp2 <fNSp; isp2++) {
       	  HYPSpacePoint* sp2=fSp[isp2];
-	        if(sp1->fNChamber != sp2->fNChamber && sp1->GetSetStubFlag() && sp2->GetSetStubFlag()) {
+	  if(sp1->fNChamber != sp2->fNChamber && sp1->GetSetStubFlag() && sp2->GetSetStubFlag()) {
             Double_t *spstub1=sp1->GetStubP();
             Double_t *spstub2=sp2->GetStubP();
             Double_t dposx = spstub1[0] - spstub2[0];
@@ -710,11 +721,11 @@ void HYPDC::LinkStubs()
               Double_t y1=spstub1[1]+fChambers[sp1->fNChamber]->GetZPos()*spstub1[3];
               Double_t y2=spstub2[1]+fChambers[sp2->fNChamber]->GetZPos()*spstub2[3];
       	      dposy = y1-y2;
-	          } else {
-	            dposy = spstub1[1] - spstub2[1];
-	          }
-	          Double_t dposxp = spstub1[2] - spstub2[2];
-	          Double_t dposyp = spstub1[3] - spstub2[3];
+	    } else {
+	      dposy = spstub1[1] - spstub2[1];
+	    }
+	    Double_t dposxp = spstub1[2] - spstub2[2];
+	    Double_t dposyp = spstub1[3] - spstub2[3];
 
             // FIXME: Clean up
             // What is the point of saving these stubmin values.  They
@@ -729,76 +740,76 @@ void HYPDC::LinkStubs()
             // Print out each stubminX that is less that its criterion
 
             if((TMath::Abs(dposx) < fXtTrCriterion)
-              && (TMath::Abs(dposy) < fYtTrCriterion)
-              && (TMath::Abs(dposxp) < fXptTrCriterion)
-              && (TMath::Abs(dposyp) < fYptTrCriterion)) {
-                if(newtrack) {
-	              	assert(sptracks==0);
-              		fStubTest = 1;
-              		// Make a new track if there are not to many
-                  if(fNDCTracks < MAXTRACKS) {
-                    sptracks=0; // Number of tracks with this seed
-                    stub_tracks[sptracks++] = fNDCTracks;
-                    HYPDCTrack *theDCTrack = new( (*fDCTracks)[fNDCTracks++]) HYPDCTrack(fNPlanes);
-                    theDCTrack->AddSpacePoint(sp1);
-                    theDCTrack->AddSpacePoint(sp2);
-                    if (sp1->fNChamber==1) theDCTrack->SetSp1_ID(sp1->fNChamber_spnum);
-                    if (sp1->fNChamber==2) theDCTrack->SetSp2_ID(sp1->fNChamber_spnum);
-                    if (sp2->fNChamber==1) theDCTrack->SetSp1_ID(sp2->fNChamber_spnum);
-                    if (sp2->fNChamber==2) theDCTrack->SetSp2_ID(sp2->fNChamber_spnum);
-                    newtrack = 0; // Make no more tracks in this loop
-                    // (But could replace a SP?)
-                  } 		
-        	      } else {
-		              // Check if there is another space point in the same chamber
-		              for(Int_t itrack=0;itrack<sptracks;itrack++) {
-                    Int_t track=stub_tracks[itrack];
-                    HYPDCTrack *theDCTrack = static_cast<HYPDCTrack*>( fDCTracks->At(track));
-                    Int_t spoint=-1;
-                    Int_t duppoint=0;
-                    for(Int_t isp=0;isp<theDCTrack->GetNSpacePoints();isp++) {
-                      // isp is index of space points in theDCTrack
-                      if(sp2->fNChamber ==
-                        theDCTrack->GetSpacePoint(isp)->fNChamber) {
-                        spoint=isp;
-                      }
-                      if(sp2==theDCTrack->GetSpacePoint(isp)) {
-                        duppoint=1;
-                      }
-                    } // End loop over sp in tracks with isp1
-                      // If there is no other space point in this chamber
-                      // add this space point to current track(2)
-		                if(!duppoint) {
-                      if(spoint<0) {
-                        theDCTrack->AddSpacePoint(sp2);
-                        if (sp2->fNChamber==1) theDCTrack->SetSp1_ID(sp2->fNChamber_spnum);
-                        if (sp2->fNChamber==2) theDCTrack->SetSp2_ID(sp2->fNChamber_spnum);
-                      } else {
-		      		          // If there is another point in the same chamber
-                        // in this track create a new track with all the
-                        // same space points except spoint
-              		      if(fNDCTracks < MAXTRACKS) {
-                          stub_tracks[sptracks++] = fNDCTracks;
-                          HYPDCTrack *newDCTrack = new( (*fDCTracks)[fNDCTracks++]) HYPDCTrack(fNPlanes);
-                          for(Int_t isp=0;isp<theDCTrack->GetNSpacePoints();isp++) {
-                    			  if(isp!=spoint) {
-                    			    newDCTrack->AddSpacePoint(theDCTrack->GetSpacePoint(isp));
-                              if (theDCTrack->GetSpacePoint(isp)->fNChamber==1) newDCTrack->SetSp1_ID(theDCTrack->GetSpacePoint(isp)->fNChamber_spnum);
-                              if (theDCTrack->GetSpacePoint(isp)->fNChamber==2) newDCTrack->SetSp2_ID(theDCTrack->GetSpacePoint(isp)->fNChamber_spnum);
-	                    		  } else {
-	                    		    newDCTrack->AddSpacePoint(sp2);
-                              if (sp2->fNChamber==1) newDCTrack->SetSp1_ID(sp2->fNChamber_spnum);
-                              if (sp2->fNChamber==2) newDCTrack->SetSp2_ID(sp2->fNChamber_spnum);
-                    			  } // End check for dup on copy
-                			    } // End copy of track
-              		      }
-  		                } // end if on same chamber
-		                } // end if on duplicate point
-                	} // end for over tracks with isp1
-	              } // else newtrack
-	            } // criterion
-	        } // end test on same chamber
-	      } // end isp2 loop over new space points
+	       && (TMath::Abs(dposy) < fYtTrCriterion)
+	       && (TMath::Abs(dposxp) < fXptTrCriterion)
+	       && (TMath::Abs(dposyp) < fYptTrCriterion)) {
+	      if(newtrack) {
+		assert(sptracks==0);
+		fStubTest = 1;
+		// Make a new track if there are not to many
+		if(fNDCTracks < MAXTRACKS) {
+		  sptracks=0; // Number of tracks with this seed
+		  stub_tracks[sptracks++] = fNDCTracks;
+		  HYPDCTrack *theDCTrack = new( (*fDCTracks)[fNDCTracks++]) HYPDCTrack(fNPlanes);
+		  theDCTrack->AddSpacePoint(sp1);
+		  theDCTrack->AddSpacePoint(sp2);
+		  if (sp1->fNChamber==1) theDCTrack->SetSp1_ID(sp1->fNChamber_spnum);
+		  if (sp1->fNChamber==2) theDCTrack->SetSp2_ID(sp1->fNChamber_spnum);
+		  if (sp2->fNChamber==1) theDCTrack->SetSp1_ID(sp2->fNChamber_spnum);
+		  if (sp2->fNChamber==2) theDCTrack->SetSp2_ID(sp2->fNChamber_spnum);
+		  newtrack = 0; // Make no more tracks in this loop
+		  // (But could replace a SP?)
+		} 		
+	      } else {
+		// Check if there is another space point in the same chamber
+		for(Int_t itrack=0;itrack<sptracks;itrack++) {
+		  Int_t track=stub_tracks[itrack];
+		  HYPDCTrack *theDCTrack = static_cast<HYPDCTrack*>( fDCTracks->At(track));
+		  Int_t spoint=-1;
+		  Int_t duppoint=0;
+		  for(Int_t isp=0;isp<theDCTrack->GetNSpacePoints();isp++) {
+		    // isp is index of space points in theDCTrack
+		    if(sp2->fNChamber ==
+		       theDCTrack->GetSpacePoint(isp)->fNChamber) {
+		      spoint=isp;
+		    }
+		    if(sp2==theDCTrack->GetSpacePoint(isp)) {
+		      duppoint=1;
+		    }
+		  } // End loop over sp in tracks with isp1
+		  // If there is no other space point in this chamber
+		  // add this space point to current track(2)
+		  if(!duppoint) {
+		    if(spoint<0) {
+		      theDCTrack->AddSpacePoint(sp2);
+		      if (sp2->fNChamber==1) theDCTrack->SetSp1_ID(sp2->fNChamber_spnum);
+		      if (sp2->fNChamber==2) theDCTrack->SetSp2_ID(sp2->fNChamber_spnum);
+		    } else {
+		      // If there is another point in the same chamber
+		      // in this track create a new track with all the
+		      // same space points except spoint
+		      if(fNDCTracks < MAXTRACKS) {
+			stub_tracks[sptracks++] = fNDCTracks;
+			HYPDCTrack *newDCTrack = new( (*fDCTracks)[fNDCTracks++]) HYPDCTrack(fNPlanes);
+			for(Int_t isp=0;isp<theDCTrack->GetNSpacePoints();isp++) {
+			  if(isp!=spoint) {
+			    newDCTrack->AddSpacePoint(theDCTrack->GetSpacePoint(isp));
+			    if (theDCTrack->GetSpacePoint(isp)->fNChamber==1) newDCTrack->SetSp1_ID(theDCTrack->GetSpacePoint(isp)->fNChamber_spnum);
+			    if (theDCTrack->GetSpacePoint(isp)->fNChamber==2) newDCTrack->SetSp2_ID(theDCTrack->GetSpacePoint(isp)->fNChamber_spnum);
+			  } else {
+			    newDCTrack->AddSpacePoint(sp2);
+			    if (sp2->fNChamber==1) newDCTrack->SetSp1_ID(sp2->fNChamber_spnum);
+			    if (sp2->fNChamber==2) newDCTrack->SetSp2_ID(sp2->fNChamber_spnum);
+			  } // End check for dup on copy
+			} // End copy of track
+		      }
+		    } // end if on same chamber
+		  } // end if on duplicate point
+		} // end for over tracks with isp1
+	      } // else newtrack
+	    } // criterion
+	  } // end test on same chamber
+	} // end isp2 loop over new space points
       } // end test on tryflag
     } // end isp1 outer loop over space points
   } else { 
@@ -806,17 +817,17 @@ void HYPDC::LinkStubs()
     // Make track out of each single space point
     for(Int_t isp = 0; isp < fNSp; isp++) {
       if(fNDCTracks < MAXTRACKS) {
-	      // Need some constructed t thingy
+	// Need some constructed t thingy
         if (fSp[isp]->GetSetStubFlag()) {
-	      HYPDCTrack *newDCTrack = new( (*fDCTracks)[fNDCTracks++]) HYPDCTrack(fNPlanes);
-	      newDCTrack->AddSpacePoint(fSp[isp]);
+	  HYPDCTrack *newDCTrack = new( (*fDCTracks)[fNDCTracks++]) HYPDCTrack(fNPlanes);
+	  newDCTrack->AddSpacePoint(fSp[isp]);
       	}
       } else {
         // TOO MANY TRACKS
-	      if (fdebuglinkstubs) cout << "EPIC FAIL 3:  Too many tracks found in HYPDC::LinkStubs" << endl;
-	        fNDCTracks=0;
-	        // Do something here to fail this event
-	        return; // Max # of allowed tracks
+	if (fdebuglinkstubs) cout << "EPIC FAIL 3:  Too many tracks found in HYPDC::LinkStubs" << endl;
+	fNDCTracks=0;
+	// Do something here to fail this event
+	return; // Max # of allowed tracks
       }
     }
   }
@@ -884,9 +895,9 @@ void HYPDC::NewLinkStubs()
           Double_t dposyp = spstub1[3] - spstub2[3];
           
           if((TMath::Abs(dposx) < fXtTrCriterion)
-            && (TMath::Abs(dposy) < fYtTrCriterion)
-            && (TMath::Abs(dposxp) < fXptTrCriterion)
-            && (TMath::Abs(dposyp) < fYptTrCriterion)) {
+	     && (TMath::Abs(dposy) < fYtTrCriterion)
+	     && (TMath::Abs(dposxp) < fXptTrCriterion)
+	     && (TMath::Abs(dposyp) < fYptTrCriterion)) {
             fStubTest = 1;
             if(fNDCTracks < MAXTRACKS) {
               HYPDCTrack *theDCTrack = new( (*fDCTracks)[fNDCTracks++]) HYPDCTrack(fNPlanes);
@@ -895,7 +906,7 @@ void HYPDC::NewLinkStubs()
               theDCTrack->SetSp1_ID(sp1->fNChamber_spnum);
               theDCTrack->SetSp2_ID(sp2->fNChamber_spnum);
             }
-        }
+	  }
         }
       }// isp2 loop
     }// isp1 loop
@@ -965,28 +976,28 @@ void HYPDC::TrackFit()
         TVectorD TT(NUM_FPRAY);
         TMatrixD AA(NUM_FPRAY,NUM_FPRAY);
         for(Int_t irayp = 0; irayp < NUM_FPRAY; irayp++) {
-	        TT[irayp] = 0.0;
-	        for(Int_t ihit = 0; ihit < theDCTrack->GetNHits(); ihit++) {
-	          HYPDCHit* hit=theDCTrack->GetHit(ihit);
-	          TT[irayp] += (coords[ihit]*fPlaneCoeffs[planes[ihit]][raycoeffmap[irayp]])/pow(hit->GetWireSigma(),2);
+	  TT[irayp] = 0.0;
+	  for(Int_t ihit = 0; ihit < theDCTrack->GetNHits(); ihit++) {
+	    HYPDCHit* hit=theDCTrack->GetHit(ihit);
+	    TT[irayp] += (coords[ihit]*fPlaneCoeffs[planes[ihit]][raycoeffmap[irayp]])/pow(hit->GetWireSigma(),2);
 	  
-	        } //end hit loop
+	  } //end hit loop
         }
 
         for(Int_t irayp=0;irayp<NUM_FPRAY;irayp++) {
-	        for(Int_t jrayp=0;jrayp<NUM_FPRAY;jrayp++) {
-	          AA[irayp][jrayp] = 0.0;
-	          if(jrayp<irayp) { // Symmetric
-	            AA[irayp][jrayp] = AA[jrayp][irayp];
-	          } else {
-	            for(Int_t ihit=0;ihit < theDCTrack->GetNHits();ihit++) {
+	  for(Int_t jrayp=0;jrayp<NUM_FPRAY;jrayp++) {
+	    AA[irayp][jrayp] = 0.0;
+	    if(jrayp<irayp) { // Symmetric
+	      AA[irayp][jrayp] = AA[jrayp][irayp];
+	    } else {
+	      for(Int_t ihit=0;ihit < theDCTrack->GetNHits();ihit++) {
                 HYPDCHit* hit=theDCTrack->GetHit(ihit);
-        	      AA[irayp][jrayp] += fPlaneCoeffs[planes[ihit]][raycoeffmap[irayp]] * 
+		AA[irayp][jrayp] += fPlaneCoeffs[planes[ihit]][raycoeffmap[irayp]] * 
                   fPlaneCoeffs[planes[ihit]][raycoeffmap[jrayp]] / pow(hit->GetWireSigma(),2);
 
-	            } //end ihit loop
-	          }
-	        }
+	      } //end ihit loop
+	    }
+	  }
         }
 
         // Solve 4x4 equations
@@ -997,25 +1008,25 @@ void HYPDC::TrackFit()
 
         // Make sure fCoords, fResiduals, and fDoubleResiduals are clear
         for(Int_t iplane=0;iplane < fNPlanes; iplane++) {
-	        Double_t coord=0.0;
-	        for(Int_t ir=0;ir<NUM_FPRAY;ir++) {
-	          coord += fPlaneCoeffs[iplane][raycoeffmap[ir]]*dray[ir];
-        	}
-	        theDCTrack->SetCoord(iplane,coord);
+	  Double_t coord=0.0;
+	  for(Int_t ir=0;ir<NUM_FPRAY;ir++) {
+	    coord += fPlaneCoeffs[iplane][raycoeffmap[ir]]*dray[ir];
+	  }
+	  theDCTrack->SetCoord(iplane,coord);
         }
 
         // Compute Chi2 and residuals
         chi2 = 0.0;
         for(Int_t ihit=0;ihit < theDCTrack->GetNHits();ihit++) {
-        	HYPDCHit* hit=theDCTrack->GetHit(ihit);
-        	Double_t residual = coords[ihit] - theDCTrack->GetCoord(planes[ihit]);
-	        theDCTrack->SetResidual(planes[ihit], residual);
-	        if (abs(residual) > MaxResid) {
-        	  MaxResidHitIndex =ihit;
-	          MaxResid = abs(residual);
-	        }
+	  HYPDCHit* hit=theDCTrack->GetHit(ihit);
+	  Double_t residual = coords[ihit] - theDCTrack->GetCoord(planes[ihit]);
+	  theDCTrack->SetResidual(planes[ihit], residual);
+	  if (abs(residual) > MaxResid) {
+	    MaxResidHitIndex =ihit;
+	    MaxResid = abs(residual);
+	  }
 
-        	chi2 += pow(residual/hit->GetWireSigma(),2);
+	  chi2 += pow(residual/hit->GetWireSigma(),2);
         }
         theDCTrack->SetVector(dray[0], dray[1], 0.0, dray[2], dray[3]);
       }// if NFree > 0
@@ -1025,35 +1036,35 @@ void HYPDC::TrackFit()
       // calculate ray without a plane in track
       for(Int_t ipl_hit=0;ipl_hit < theDCTrack->GetNHits();ipl_hit++) {
         if(theDCTrack->GetNFree() > 0) {
-        	TVectorD TT(NUM_FPRAY);
-        	TMatrixD AA(NUM_FPRAY,NUM_FPRAY);
-        	for(Int_t irayp=0;irayp<NUM_FPRAY;irayp++) {
-        	  TT[irayp] = 0.0;
-        	  for(Int_t ihit=0;ihit < theDCTrack->GetNHits();ihit++) {
-        	    HYPDCHit* hit=theDCTrack->GetHit(ihit);
-        	    if (ihit != ipl_hit) {
-        	      TT[irayp] += (coords[ihit] *
-      			    fPlaneCoeffs[planes[ihit]][raycoeffmap[irayp]]) / pow(hit->GetWireSigma(),2);
-        	    }
-        	  }
-        	}
-        	for(Int_t irayp=0;irayp<NUM_FPRAY;irayp++) {
-        	  for(Int_t jrayp=0;jrayp<NUM_FPRAY;jrayp++) {
-        	    AA[irayp][jrayp] = 0.0;
-        	    if(jrayp<irayp) { // Symmetric
-        	      AA[irayp][jrayp] = AA[jrayp][irayp];
-        	    } else {
-        	      for(Int_t ihit=0;ihit < theDCTrack->GetNHits();ihit++) {
-              		HYPDCHit* hit=theDCTrack->GetHit(ihit);
-              		if (ihit != ipl_hit) {
-              		  AA[irayp][jrayp] += fPlaneCoeffs[planes[ihit]][raycoeffmap[irayp]]*
-            		    fPlaneCoeffs[planes[ihit]][raycoeffmap[jrayp]]/
-              	    pow(hit->GetWireSigma(),2);
-              		}
-        	      }
-        	    }
-        	  }
-        	}
+	  TVectorD TT(NUM_FPRAY);
+	  TMatrixD AA(NUM_FPRAY,NUM_FPRAY);
+	  for(Int_t irayp=0;irayp<NUM_FPRAY;irayp++) {
+	    TT[irayp] = 0.0;
+	    for(Int_t ihit=0;ihit < theDCTrack->GetNHits();ihit++) {
+	      HYPDCHit* hit=theDCTrack->GetHit(ihit);
+	      if (ihit != ipl_hit) {
+		TT[irayp] += (coords[ihit] *
+			      fPlaneCoeffs[planes[ihit]][raycoeffmap[irayp]]) / pow(hit->GetWireSigma(),2);
+	      }
+	    }
+	  }
+	  for(Int_t irayp=0;irayp<NUM_FPRAY;irayp++) {
+	    for(Int_t jrayp=0;jrayp<NUM_FPRAY;jrayp++) {
+	      AA[irayp][jrayp] = 0.0;
+	      if(jrayp<irayp) { // Symmetric
+		AA[irayp][jrayp] = AA[jrayp][irayp];
+	      } else {
+		for(Int_t ihit=0;ihit < theDCTrack->GetNHits();ihit++) {
+		  HYPDCHit* hit=theDCTrack->GetHit(ihit);
+		  if (ihit != ipl_hit) {
+		    AA[irayp][jrayp] += fPlaneCoeffs[planes[ihit]][raycoeffmap[irayp]]*
+		      fPlaneCoeffs[planes[ihit]][raycoeffmap[jrayp]]/
+		      pow(hit->GetWireSigma(),2);
+		  }
+		}
+	      }
+	    }
+	  }
 
           // Solve 4x4 equations
           // Should check that it is invertable
@@ -1074,8 +1085,8 @@ void HYPDC::TrackFit()
       } else {
         CheckResid = kFALSE;
         if ( MaxResid  > fTrackLargeResidCut) {
-           CheckResid = kTRUE;
-	          theDCTrack->RemoveHit(MaxResidHitIndex);
+	  CheckResid = kTRUE;
+	  theDCTrack->RemoveHit(MaxResidHitIndex);
         }
       }
 
@@ -1110,7 +1121,7 @@ void HYPDC::TrackFit()
 
           // Loop over hits in second chamber
           for(Int_t ihit=0;ihit < theDCTrack2->GetNHits();ihit++) {
-	          // Calculate residual in second chamber from first chamber track
+	    // Calculate residual in second chamber from first chamber track
             HYPDCHit* hit=theDCTrack2->GetHit(ihit);
             Int_t plane=hit->GetPlaneNum()-1;
             Double_t pos = DpsiFun(ray1,plane);
@@ -1127,7 +1138,7 @@ void HYPDC::TrackFit()
             Int_t plane=hit->GetPlaneNum()-1;
             Double_t pos = DpsiFun(ray1,plane);
             Double_t coord;
-        		coord = hit->GetPos() + theDCTrack1->GetHitLR(ihit)*theDCTrack1->GetHitDist(ihit);
+	    coord = hit->GetPos() + theDCTrack1->GetHitLR(ihit)*theDCTrack1->GetHitDist(ihit);
       	    theDCTrack2->SetDoubleResidual(plane,coord - pos);
       	  }
       	}// if chamber 2
@@ -1141,21 +1152,21 @@ void HYPDC::TrackFit()
 Double_t HYPDC::DpsiFun(Double_t ray[4], Int_t plane)
 {
   /**
-    this function calculates the psi coordinate of the intersection
-    of a ray (defined by ray) with a hms wire chamber plane. the geometry
-    of the plane is contained in the coeff array calculated in the
-    array hplane_coeff
-    Note it is call by MINUIT via H_FCNCHISQ and so uses double precision
-    variables
+     this function calculates the psi coordinate of the intersection
+     of a ray (defined by ray) with a hms wire chamber plane. the geometry
+     of the plane is contained in the coeff array calculated in the
+     array hplane_coeff
+     Note it is call by MINUIT via H_FCNCHISQ and so uses double precision
+     variables
 
-    the ray is defined by
-    x = (z-zt)*tan(xp) + xt
-    y = (z-zt)*tan(yp) + yt
+     the ray is defined by
+     x = (z-zt)*tan(xp) + xt
+     y = (z-zt)*tan(yp) + yt
      at some fixed value of zt*
-    ray(1) = xt
-    ray(2) = yt
-    ray(3) = tan(xp)
-    ray(4) = tan(yp)
+     ray(1) = xt
+     ray(2) = yt
+     ray(3) = tan(xp)
+     ray(4) = tan(yp)
   */
 
   Double_t infinity = 1.0E+20;
@@ -1258,7 +1269,7 @@ void HYPDC::PrintSpacePoints()
 {
   for(UInt_t ich=0;ich<fNChambers;ich++) {
     printf("%s %2d %s %3d %s %3d \n"," chamber = ",fChambers[ich]->GetChamberNum()," number of hits = ",
-    fChambers[ich]->GetNHits()," number of spacepoints = ",fChambers[ich]->GetNSpacePoints());
+	   fChambers[ich]->GetNHits()," number of spacepoints = ",fChambers[ich]->GetNSpacePoints());
     printf("%6s %-8s %-8s %6s %6s \n","     "," "," ","Number","Number");
     printf("%6s %-8s %-8s %6s %6s \n","Point","x","y"," hits ","combos");
     TClonesArray* spacepointarray = fChambers[ich]->GetSpacePointsP();
@@ -1291,26 +1302,26 @@ void HYPDC::PrintStubs()
 
 //________________________________________________________________
 void HYPDC::PrintTrack() {
-    printf("%5s %-14s %-14s %-14s %-14s  %-10s %-10s \n","Track","x_t","y_t","xp_t","yp_t","chi2","DOF");
-    printf("%5s %-14s %-14s %-14s %-14s  %-10s %-10s \n","     ","[cm]","[cm]","[rad]","[rad]"," "," ");
-    for(UInt_t itr=0;itr < fNDCTracks;itr++) {
-      HYPDCTrack *theDCTrack = static_cast<HYPDCTrack*>( fDCTracks->At(itr));
-      printf("%-5d %14.6e %14.6e %14.6e %14.6e %10.3e %3d \n", itr+1,theDCTrack->GetX(),theDCTrack->GetY(),
-      theDCTrack->GetXP(),theDCTrack->GetYP(),theDCTrack->GetChisq(),theDCTrack->GetNFree());
+  printf("%5s %-14s %-14s %-14s %-14s  %-10s %-10s \n","Track","x_t","y_t","xp_t","yp_t","chi2","DOF");
+  printf("%5s %-14s %-14s %-14s %-14s  %-10s %-10s \n","     ","[cm]","[cm]","[rad]","[rad]"," "," ");
+  for(UInt_t itr=0;itr < fNDCTracks;itr++) {
+    HYPDCTrack *theDCTrack = static_cast<HYPDCTrack*>( fDCTracks->At(itr));
+    printf("%-5d %14.6e %14.6e %14.6e %14.6e %10.3e %3d \n", itr+1,theDCTrack->GetX(),theDCTrack->GetY(),
+	   theDCTrack->GetXP(),theDCTrack->GetYP(),theDCTrack->GetChisq(),theDCTrack->GetNFree());
+  }
+  for(UInt_t itr=0;itr < fNDCTracks;itr++) {
+    printf("%s %5d \n","Hit info for track number = ",itr+1);
+    printf("%5s %-15s %-15s %-15s \n","Plane","WIRE_COORD","Fit postiion","Residual");
+    HYPDCTrack *theDCTrack = static_cast<HYPDCTrack*>( fDCTracks->At(itr));
+    for(Int_t ihit=0;ihit < theDCTrack->GetNHits();ihit++) {
+      HYPDCHit* hit=theDCTrack->GetHit(ihit);
+      Int_t plane=hit->GetPlaneNum()-1;
+      Double_t coords_temp;
+      coords_temp = hit->GetPos()
+	+ theDCTrack->GetHitLR(ihit)*theDCTrack->GetHitDist(ihit);
+      printf("%-5d %15.7e %15.7e %15.7e \n",plane+1,coords_temp,theDCTrack->GetCoord(plane),theDCTrack->GetResidual(plane));
     }
-    for(UInt_t itr=0;itr < fNDCTracks;itr++) {
-      printf("%s %5d \n","Hit info for track number = ",itr+1);
-      printf("%5s %-15s %-15s %-15s \n","Plane","WIRE_COORD","Fit postiion","Residual");
-      HYPDCTrack *theDCTrack = static_cast<HYPDCTrack*>( fDCTracks->At(itr));
-      for(Int_t ihit=0;ihit < theDCTrack->GetNHits();ihit++) {
-	HYPDCHit* hit=theDCTrack->GetHit(ihit);
-	Int_t plane=hit->GetPlaneNum()-1;
-	Double_t coords_temp;
-	    coords_temp = hit->GetPos()
-	      + theDCTrack->GetHitLR(ihit)*theDCTrack->GetHitDist(ihit);
-	printf("%-5d %15.7e %15.7e %15.7e \n",plane+1,coords_temp,theDCTrack->GetCoord(plane),theDCTrack->GetResidual(plane));
-      }
-    }
+  }
 }
 
 ClassImp(HYPDC)
