@@ -19,7 +19,7 @@ using namespace std;
 
 namespace Decoder {
 
-  const UInt_t NTDCCHAN = 192;
+  const UInt_t NTDCCHAN = 256;
   const UInt_t MAXHIT = 100;
 
   Module::TypeIter_t vfTDCModule::fgThisType =

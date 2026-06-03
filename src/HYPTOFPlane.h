@@ -76,7 +76,6 @@ class HYPTOFPlane : public THaSubDetector{
     Int_t GetNumPosAdcHits() { return static_cast<Int_t>(fPosAdcData.size()); }
     Int_t GetNumNegAdcHits() { return static_cast<Int_t>(fNegAdcData.size()); }
 
-
   ClassDef(HYPTOFPlane, 0);
 
 };

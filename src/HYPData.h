@@ -7,8 +7,8 @@
 
 namespace HYPData {
 
-class FADCHitData {
-    public:
+  class FADCHitData {
+  public:
     FADCHitData() : paddle(0), Ped(0), PulseInt(0), PulseAmp(0),
 		    PulseTime(0), Is_good_hit(0) {}
 
@@ -25,18 +25,18 @@ class FADCHitData {
     Int_t  Is_good_hit;
   };
 
-class TDCData {
+  class TDCData {
   public:
     TDCData(Int_t padnum, Int_t time_raw, Int_t time_cor, Int_t good_hit) :
       paddle(padnum), TimeRaw(time_raw), Time(time_cor), Is_good_hit(good_hit) {}
     TDCData() : paddle(0), TimeRaw(0), Time(0), Is_good_hit(0) {}
-
+    
     Int_t  paddle;
     Int_t  TimeRaw;
     Int_t  Time; // Ref time subtracted  
     Int_t  Is_good_hit;
-};
-
-}
+  };
+  
+}// namespace HYPData
 
 #endif

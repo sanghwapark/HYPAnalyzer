@@ -24,7 +24,6 @@ set(src
   HYPRawAdcHit.cxx
   vfTDC.cxx
   VETROC.cxx
-  DCDetector.cxx
 )
 
 # Headers

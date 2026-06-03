@@ -100,7 +100,6 @@ Int_t HYPTOFPlane::ReadDatabase( const TDatime& date )
   return kOK;
 }
 
-
 //__________________________________________________________________
 Int_t HYPTOFPlane::DefineVariables( EMode mode )
 {
@@ -405,7 +404,6 @@ Int_t HYPTOFPlane::ProcessHits(TClonesArray *rawhits, int nexthit)
 
   return ihit;
 }
-
 
 //__________________________________________________________________
 Int_t HYPTOFPlane::CoarseProcess( TClonesArray& tracks )
