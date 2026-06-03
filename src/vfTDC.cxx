@@ -19,7 +19,7 @@ using namespace std;
 
 namespace Decoder {
 
-  const UInt_t NTDCCHAN = 256;
+  const UInt_t NTDCCHAN = 192;
   const UInt_t MAXHIT = 100;
 
   Module::TypeIter_t vfTDCModule::fgThisType =
@@ -175,13 +175,14 @@ namespace Decoder {
 	  tdc_data.chan = group*32 + chan;
 	  }
 	*/
-	tdc_data.raw = coarse*4 + two_ns*2 + fine*2/124.87; // time in ns
+	//tdc_data.raw = coarse*4 + two_ns*2 + fine*2/124.87; // time in ns
+	tdc_data.raw = coarse*4 + two_ns*2 + fine*2/128.; // time in ns
 	
   // Remove trigger time subtraction to avoid two peaks for ref time
-	//if (tdc_data.raw < tdc_data.trig_time) {
-	//  tdc_data.raw = tdc_data.raw + 1024*4;
-	//}	
-	//tdc_data.raw = tdc_data.raw - tdc_data.trig_time/1000.; // time in ns
+	if (tdc_data.raw < tdc_data.trig_time) {
+	  tdc_data.raw = tdc_data.raw + 1024*4;
+	}	
+	tdc_data.raw = tdc_data.raw - tdc_data.trig_time/1000.; // time in ns
 	
 	tdc_data.status = slot_data->loadData("tdc", tdc_data.chan, tdc_data.raw, tdc_data.opt);
 

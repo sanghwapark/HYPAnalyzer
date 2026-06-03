@@ -239,7 +239,7 @@ Int_t HYPTOFPlane::ProcessHits(TClonesArray *rawhits, int nexthit)
       for(UInt_t thit = 0; thit < rawTdcHit.GetNHits(); thit++){
         Int_t good_tdc_hit_flag = 0;
         Double_t this_tdc = rawTdcHit.GetTime(thit) + fTdcOffset;
-        cout << "Plane, PMT, TDC: " << fPlaneNum << " " << padnum << " " << rawTdcHit.GetTimeRaw(thit) << endl;
+        // cout << "Plane, PMT, TDC: " << fPlaneNum << " " << padnum << " " << rawTdcHit.GetTimeRaw(thit) << endl;
         if( this_tdc >= fScinTdcMin && this_tdc < fScinTdcMax ) {
           good_tdc_hit_flag = 1;
           if(iFirstGoodHit[signal] == -1) {

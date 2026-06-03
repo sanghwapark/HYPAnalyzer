@@ -80,8 +80,7 @@ THaAnalysisObject::EStatus HYPTOFDetector::Init( const TDatime & date )
         return kInitError;
     }
 
-    InitHitList(fDetMap, "THcRawHodoHit", fDetMap->GetTotNumChan()+1,
-        fTDC_RefTimeCut, fADC_RefTimeCut);
+    InitHitList(fDetMap, "THcRawHodoHit", fDetMap->GetTotNumChan()+1, fTDC_RefTimeCut, fADC_RefTimeCut);
 
     EStatus status;       
     if ((status = THaNonTrackingDetector::Init(date)))

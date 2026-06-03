@@ -108,8 +108,8 @@ protected:
   void       SelectSpacePoints(void);
   UInt_t     Count1Bits(UInt_t x);
   Double_t   FindStub(Int_t nhits, HYPSpacePoint *sp, 
-              Int_t* plane_list, UInt_t bitpat, 
-              Int_t* plusminus, Double_t* stub);
+              vector<Int_t> plane_list, UInt_t bitpat, 
+              vector<Int_t> plusminus, Double_t* stub);
 
   THaDetectorBase* fParent;
 
