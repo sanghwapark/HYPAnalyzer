@@ -47,6 +47,13 @@ class HYPTOFPlane : public THaSubDetector{
     vector<FADCHitData> fPosAdcSampData;
     vector<FADCHitData> fNegAdcSampData;
 
+    vector<Int_t> fPosAdcPedRaw;
+    vector<Int_t> fNegAdcPedRaw;
+    vector<Double_t> fPosAdcPed;
+    vector<Double_t> fNegAdcPed;
+    vector<Double_t> fGoodPosAdcPed;
+    vector<Double_t> fGoodNegAdcPed;
+
     vector<Int_t> fPosAdcErrorFlag;
     vector<Int_t> fNegAdcErrorFlag;
 

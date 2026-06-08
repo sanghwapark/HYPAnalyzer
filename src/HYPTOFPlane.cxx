@@ -34,7 +34,7 @@ HYPTOFPlane::~HYPTOFPlane()
 //__________________________________________________________________
 THaAnalysisObject::EStatus HYPTOFPlane::Init(const TDatime &date)
 {
-  cout << "HYPTOFPlane::Init" << endl;
+  // cout << "HYPTOFPlane::Init" << endl;
 
   EStatus status;
   if( (status = THaSubDetector::Init(date)) )
@@ -52,6 +52,12 @@ Int_t HYPTOFPlane::ReadDatabase( const TDatime& date )
   prefix[1]='\0';
 
   Bool_t optional = true;
+
+  DBRequest list0[] = {
+    {Form("tof_%s_nr", GetName()), &fNelem, kInt},
+    {nullptr}
+  };
+  gHcParms->LoadParmValues((DBRequest*)&list0, prefix);
 
   DBRequest list[] = {
     {"tof_debug_adc", &fDebugADC, kInt, 0, optional},
@@ -97,6 +103,14 @@ Int_t HYPTOFPlane::ReadDatabase( const TDatime& date )
     fAdcRefDiffTime[i] = kBig;
   }
 
+  // Pedestal vectors
+  fPosAdcPedRaw = vector<Int_t> (fNelem, 0);
+  fNegAdcPedRaw = vector<Int_t> (fNelem, 0);
+  fPosAdcPed = vector<Double_t> (fNelem, 0.0);
+  fNegAdcPed = vector<Double_t> (fNelem, 0.0);
+  fGoodPosAdcPed = vector<Double_t> (fNelem, 0.0);
+  fGoodNegAdcPed = vector<Double_t> (fNelem, 0.0);
+
   return kOK;
 }
 
@@ -104,28 +118,28 @@ Int_t HYPTOFPlane::ReadDatabase( const TDatime& date )
 Int_t HYPTOFPlane::DefineVariables( EMode mode )
 {
 
-  cout << "HYPTOFPlane::DefineVariables" << endl;
+  // cout << "HYPTOFPlane::DefineVariables" << endl;
   
-//  if( mode == kDefine && fIsSetup ) return kOK;
-//  fIsSetup = ( mode == kDefine );
+  if( mode == kDefine && fIsSetup ) return kOK;
+  fIsSetup = ( mode == kDefine );
 
   if(fDebugADC) {
     RVarDef vars[] = {
       {"posAdcPadNum",       "Paddle number",                     "fPosAdcDataRaw.paddle"},
-      {"posAdcPedRaw",       "Positive Raw ADC pedestals",        "fPosAdcDataRaw.Ped"},
+      {"posAdcPedRaw",       "Positive Raw ADC pedestals",        "fPosAdcPedRaw"},
       {"posAdcPulseIntRaw",  "Positive Raw ADC pulse integrals",  "fPosAdcDataRaw.PulseInt"},
       {"posAdcPulseAmpRaw",  "Positive Raw ADC pulse amplitudes", "fPosAdcDataRaw.PulseAmp"},
       {"posAdcPulseTimeRaw", "Positive Raw ADC pulse times",      "fPosAdcDataRaw.PulseTime"},
-      {"posAdcPed",          "Positive ADC pedestals",            "fPosAdcData.Ped"},
+      {"posAdcPed",          "Positive ADC pedestals",            "fPosAdcPed"},
       {"posAdcPulseInt",     "Positive ADC pulse integrals",      "fPosAdcData.PulseInt"},
       {"posAdcPulseAmp",     "Positive ADC pulse amplitudes",     "fPosAdcData.PulseAmp"},
       {"posAdcPulseTime",    "Positive ADC pulse times",          "fPosAdcData.PulseTime"},
       {"negAdcPadNum",       "Paddle number",                     "fNegAdcDataRaw.paddle"},
-      {"negAdcPedRaw",       "Negative Raw ADC pedestals",        "fNegAdcDataRaw.Ped"},
+      {"negAdcPedRaw",       "Negative Raw ADC pedestals",        "fNegAdcPedRaw"},
       {"negAdcPulseIntRaw",  "Negative Raw ADC pulse integrals",  "fNegAdcDataRaw.PulseInt"},
       {"negAdcPulseAmpRaw",  "Negative Raw ADC pulse amplitudes", "fNegAdcDataRaw.PulseAmp"},
       {"negAdcPulseTimeRaw", "Negative Raw ADC pulse times",      "fNegAdcDataRaw.PulseTime"},
-      {"negAdcPed",          "Negative ADC pedestals",            "fNegAdcData.Ped"},
+      {"negAdcPed",          "Negative ADC pedestals",            "fNegAdcPed"},
       {"negAdcPulseInt",     "Negative ADC pulse integrals",      "fNegAdcData.PulseInt"},
       {"negAdcPulseAmp",     "Negative ADC pulse amplitudes",     "fNegAdcData.PulseAmp"},
       {"negAdcPulseTime",    "Negative ADC pulse times",          "fNegAdcData.PulseTime"},
@@ -188,6 +202,13 @@ void HYPTOFPlane::Clear( Option_t* opt )
   fPosSampWaveform.clear();
   fNegSampWaveform.clear();
 
+  fPosAdcPedRaw.assign(fNelem, 0);
+  fNegAdcPedRaw.assign(fNelem, 0);
+  fPosAdcPed.assign(fNelem, 0.0);
+  fNegAdcPed.assign(fNelem, 0.0);
+  fGoodPosAdcPed.assign(fNelem, 0.0);
+  fGoodNegAdcPed.assign(fNelem, 0.0);
+
   for(int i = 0; i < 2; i++) {
     fTdcRefTime[i] = kBig;
     fTdcRefDiffTime[i] = kBig;
@@ -212,8 +233,6 @@ Int_t HYPTOFPlane::ProcessHits(TClonesArray *rawhits, int nexthit)
 
   Int_t nrawhits = rawhits->GetLast()+1;
   Int_t ihit = nexthit;
-
-  // cout << "HYPTOFPlane::ProcessHits " << nrawhits << endl;
 
   while( ihit < nrawhits )
   {
@@ -254,20 +273,12 @@ Int_t HYPTOFPlane::ProcessHits(TClonesArray *rawhits, int nexthit)
 
         if(signal == 0) fPosTdcData.emplace_back(t_data);
         if(signal == 1) fNegTdcData.emplace_back(t_data);
-        /*
-        if(signal == 0) {
-          fPosTdcData.emplace_back(padnum, rawTdcHit.GetTimeRaw(thit), rawTdcHit.GetTime(thit), good_tdc_hit_flag );
-        }
-        else {
-          fNegTdcData.emplace_back(padnum, rawTdcHit.GetTimeRaw(thit), rawTdcHit.GetTime(thit), good_tdc_hit_flag );
-        } 
-        */       
       }
 
       // ADC
       THcRawAdcHit& rawAdcHit = (signal == 0) ? hit->GetRawAdcHitPos() : hit->GetRawAdcHitNeg();
       // Ref time
-      if( (rawAdcHit.GetNPulses() > 0. || rawAdcHit.GetNSamples() > 0) && rawAdcHit.HasRefTime() ) {
+      if( (rawAdcHit.GetNPulses() > 0 || rawAdcHit.GetNSamples() > 0) && rawAdcHit.HasRefTime() ) {
         if( fAdcRefTime[signal] == kBig ) {
           fAdcRefTime[signal] = rawAdcHit.GetRefTime();
           fAdcRefDiffTime[signal] = rawAdcHit.GetRefDiffTime();
@@ -278,7 +289,7 @@ Int_t HYPTOFPlane::ProcessHits(TClonesArray *rawhits, int nexthit)
       for(UInt_t thit = 0; thit < rawAdcHit.GetNPulses(); thit++) {
         FADCHitData fdata_raw;
         FADCHitData fdata;
-   
+
         fdata_raw.paddle = padnum;
         fdata_raw.Ped = rawAdcHit.GetPedRaw();
         fdata_raw.PulseInt = rawAdcHit.GetPulseIntRaw(thit);
@@ -286,7 +297,7 @@ Int_t HYPTOFPlane::ProcessHits(TClonesArray *rawhits, int nexthit)
         fdata_raw.PulseTime = rawAdcHit.GetPulseTimeRaw(thit);
 
         fdata.paddle = padnum;
-        fdata.Ped = rawAdcHit.GetPedRaw();
+        fdata.Ped = rawAdcHit.GetPed();
         fdata.PulseInt = rawAdcHit.GetPulseInt(thit);
         fdata.PulseAmp = rawAdcHit.GetPulseAmp(thit);
         fdata.PulseTime = rawAdcHit.GetPulseTime(thit);
@@ -299,11 +310,15 @@ Int_t HYPTOFPlane::ProcessHits(TClonesArray *rawhits, int nexthit)
           fPosAdcDataRaw.emplace_back(fdata_raw);
           fPosAdcData.emplace_back(fdata);
           fPosAdcErrorFlag.emplace_back(errorflag);
+          fPosAdcPedRaw[padnum-1] = fdata_raw.Ped;
+          fPosAdcPed[padnum-1] = fdata.Ped;
         }
         else{
           fNegAdcDataRaw.emplace_back(fdata_raw);
           fNegAdcData.emplace_back(fdata);
           fNegAdcErrorFlag.emplace_back(errorflag);
+          fNegAdcPedRaw[padnum-1] = fdata_raw.Ped;
+          fNegAdcPed[padnum-1] = fdata.Ped;
         }
      }
 
@@ -356,11 +371,15 @@ Int_t HYPTOFPlane::ProcessHits(TClonesArray *rawhits, int nexthit)
               fPosAdcDataRaw.emplace_back(fsampdata_raw);
               fPosAdcData.emplace_back(fsampdata);
               fPosAdcErrorFlag.emplace_back(errorflag);
+              fPosAdcPedRaw[padnum-1] = fsampdata_raw.Ped;
+              fPosAdcPed[padnum-1] = fsampdata.Ped;
             }
             else{
               fNegAdcDataRaw.emplace_back(fsampdata_raw);
               fNegAdcData.emplace_back(fsampdata);
               fNegAdcErrorFlag.emplace_back(errorflag);
+              fNegAdcPedRaw[padnum-1] = fsampdata_raw.Ped;
+              fNegAdcPed[padnum-1] = fsampdata.Ped;
             }
 
           }
@@ -368,35 +387,35 @@ Int_t HYPTOFPlane::ProcessHits(TClonesArray *rawhits, int nexthit)
       }// Sample data
 
       /*
-      Int_t iMaxAmpIndex = -1;
-      Int_t iMinAdcTdcDiff = -1;
-      Double_t max_amp_temp = -1000;
-      Double_t min_adctdcdiff = 1000;
+	Int_t iMaxAmpIndex = -1;
+	Int_t iMinAdcTdcDiff = -1;
+	Double_t max_amp_temp = -1000;
+	Double_t min_adctdcdiff = 1000;
 
-      auto& fAdcData = (signal == 0) ? fPosAdcData : fNegAdcData;
-      for( auto& f_data : fAdcData ) {
+	auto& fAdcData = (signal == 0) ? fPosAdcData : fNegAdcData;
+	for( auto& f_data : fAdcData ) {
         Data_t this_amp = f_data.PulseAmp;
         Data_t this_time = f_data.PulseTime + fAdcTdcOffset;
         if( this_amp > max_amp_temp ) {
-          iMaxAmpIndex = 
+	iMaxAmpIndex = 
         }
 
-      }
+	}
 
 	Double_t pulseTime    = rawNegAdcHit.GetPulseTime(ielem)+fAdcTdcOffset;
         Double_t TdcAdcTimeDiff = tdc_neg*fScinTdcToTime-pulseTime;
         if (rawNegAdcHit.GetPulseAmpRaw(ielem) <= 0)pulseAmp= 200.;
 	Bool_t   pulseTimeCut =( TdcAdcTimeDiff > fHodoNegAdcTimeWindowMin[index]) &&  (TdcAdcTimeDiff < fHodoNegAdcTimeWindowMax[index]);
 	if (pulseTimeCut &&  pulseAmp>max_adcamp_test) {
-	  good_ielem_negadc = ielem;
-	  max_adcamp_test=pulseAmp;
+	good_ielem_negadc = ielem;
+	max_adcamp_test=pulseAmp;
 	}
 	if (abs(TdcAdcTimeDiff) < max_adctdcdiff_test) {
-	  good_ielem_negadc_test2 = ielem;
-	  max_adctdcdiff_test=abs(TdcAdcTimeDiff);
+	good_ielem_negadc_test2 = ielem;
+	max_adctdcdiff_test=abs(TdcAdcTimeDiff);
 	}
 
-*/
+      */
 
     }// for each side pmt
     ihit++;

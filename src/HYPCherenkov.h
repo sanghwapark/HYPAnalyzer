@@ -7,6 +7,7 @@
 #include "THcHitList.h"
 #include "THcCherenkovHit.h"
 #include "HYPData.h"
+#include <cmath>
 #include <vector>
 
 using namespace std;
@@ -34,6 +35,7 @@ class HYPCherenkov : public THaNonTrackingDetector, THcHitList {
   Bool_t* fPresentP;
 
   Int_t     fADC_RefTimeCut;
+  Double_t  fAdcTdcOffset;
   Int_t     fUseSampWaveform;
   Double_t  fSampThreshold;
   Int_t     fSampNSA;
@@ -60,6 +62,13 @@ class HYPCherenkov : public THaNonTrackingDetector, THcHitList {
   vector<FADCHitData> fPosSampData;
   vector<FADCHitData> fNegSampData;
 
+  vector<Int_t> fPosAdcPedRaw;
+  vector<Int_t> fNegAdcPedRaw;
+  vector<Double_t> fPosAdcPed;
+  vector<Double_t> fNegAdcPed;
+  vector<Double_t> fGoodPosAdcPed;
+  vector<Double_t> fGoodNegAdcPed;
+
   vector<Int_t> fPosErrorFlag;
   vector<Int_t> fNegErrorFlag;
 
@@ -67,6 +76,12 @@ class HYPCherenkov : public THaNonTrackingDetector, THcHitList {
   Double_t fPosNpeSum;
   Double_t fNegNpeSum;
   Double_t fNpeSum;
+  vector<Double_t> fPosNpe; // npe per pmt
+  vector<Double_t> fNegNpe;
+
+  // Occupancy
+  vector<Int_t> fNumGoodPosAdcHits;
+  vector<Int_t> fNumGoodNegAdcHits;
 
   // Save pulse data that passed the cuts
   vector<FADCHitData> fPosDataGood;
