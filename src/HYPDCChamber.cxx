@@ -871,20 +871,22 @@ void HYPDCChamber::LeftRight()
     Double_t tmp_minchi2=maxchi2;
     // Double_t minxp = 0.25;
 
-    Int_t plusminusknown[nhits];
-    Int_t plusminusbest[nhits];
-    Int_t plusminus[nhits];	
-    Int_t tmp_plusminus[nhits];
-    Int_t plane_list[nhits];
-    Double_t stub[4];
-    Double_t tmp_stub[4];
-    Int_t nplusminus;
-
+    // FIXME: should return with error code
     if(nhits < 0) {
       if (fhdebugflagpr) cout << "HYPDCChamber::LeftRight() nhits < 0" << endl;
     } else if (nhits==0) {
       if (fhdebugflagpr) cout << "HYPDCChamber::LeftRight() nhits = 0" << endl;
     }
+
+    vector<Int_t> plusminusknown(nhits);
+    vector<Int_t> plusminusbest(nhits);
+    vector<Int_t> plusminus(nhits);
+    vector<Int_t> tmp_plusminus(nhits);
+    vector<Int_t> plane_list(nhits);  
+    Double_t stub[4];
+    Double_t tmp_stub[4];
+    Int_t nplusminus;
+
     for(Int_t ihit=0;ihit < nhits;ihit++) {
       HYPDCHit* hit = sp->GetHit(ihit);
       Int_t pindex = hit->GetPlaneIndex();
@@ -1044,8 +1046,8 @@ UInt_t HYPDCChamber::Count1Bits(UInt_t x)
 
 //____________________________________________________
 Double_t HYPDCChamber::FindStub(Int_t nhits, HYPSpacePoint *sp,
-				Int_t* plane_list, UInt_t bitpat,
-				Int_t* plusminus, Double_t* stub)
+				vector<Int_t> plane_list, UInt_t bitpat,
+				vector<Int_t> plusminus, Double_t* stub)
 {
   // For a given combination of L/R, fit a stub to the space point
   // This method does a linear least squares fit of a line to the

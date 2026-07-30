@@ -176,11 +176,8 @@ namespace Decoder {
 	  }
 	*/
 	//tdc_data.raw = coarse*4 + two_ns*2 + fine*2/124.87; // time in ns
-	//tdc_data.raw = coarse*4 + two_ns*2 + fine*2/128.;
-	tdc_data.raw = coarse*4 + two_ns*2 + fine*2/109.59;
+	tdc_data.raw = coarse*4 + two_ns*2 + fine*2/128.; // time in ns
 	
-	// Remove trigger time subtraction to avoid two peaks for ref time
-
 	if (tdc_data.raw < tdc_data.trig_time) {
 	  tdc_data.raw = tdc_data.raw + 1024*4;
 	}	

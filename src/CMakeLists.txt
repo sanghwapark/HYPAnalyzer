@@ -22,9 +22,8 @@ set(src
   HYPTOFDetector.cxx
   HYPCherenkov.cxx  
   HYPRawAdcHit.cxx
-  HYPData.cxx
   vfTDC.cxx
-  DCDetector.cxx
+  VETROC.cxx
 )
 
 # Headers
@@ -36,7 +35,7 @@ string(REPLACE .cxx .h headers "${src}")
 
 # If you have other headers NOT needed for the ROOT dictionary but needed for
 # the library, add them here as shown in the line commented out below.
-set(allheaders ${headers})
+set(allheaders ${headers} HYPData.h)
 #set(allheaders ${headers} StandaloneHeader1.h StandaloneHeader2.h)
 
 #----------------------------------------------------------------------------

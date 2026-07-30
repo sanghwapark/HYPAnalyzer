@@ -1,13 +1,3 @@
-/** \class VETROC Module
-    \author Stephen Wood
-    \author Simona Malace
-    \author Brad Sawatzky
-    \author Eric Pooser
-
-    Decoder module to retrieve Caen 1190 TDCs.  Based on CAEN 1190 decoding in
-    THaCodaDecoder.C in podd 1.5.   (Written by S. Malace, modified by B. Sawatzky)
-*/
-
 #include "VETROC.h"
 #include "THaSlotData.h"
 #include <iostream>
