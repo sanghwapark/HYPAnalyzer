@@ -7,6 +7,7 @@
 #include "THcGlobals.h"
 #include "THcDetectorMap.h"
 
+#include <cfloat>
 #include <iostream>
 
 using namespace std;
@@ -17,6 +18,7 @@ HYPTOFDetector::HYPTOFDetector( const char* name, const char* description,
   THaNonTrackingDetector(name, description, apparatus)
 {
   fNPlanes = 0;
+  fMaxElement = 0;
 }
 
 //____________________________________________________________________________________
@@ -26,6 +28,15 @@ HYPTOFDetector::~HYPTOFDetector()
   for(auto plane : fPlanes )
     delete plane;
   fPlanes.clear();
+
+  delete [] fTdcOffset;     fTdcOffset = nullptr;
+  delete [] fAdcTdcOffset;  fAdcTdcOffset = nullptr;
+  delete [] fCorrPosC1;   fCorrPosC1 = nullptr;
+  delete [] fCorrNegC1;   fCorrNegC1 = nullptr;
+  delete [] fCorrPosC2;   fCorrPosC2 = nullptr;
+  delete [] fCorrNegC2;   fCorrNegC2 = nullptr;
+  delete [] fCorrPosC3;   fCorrPosC3 = nullptr;
+  delete [] fCorrNegC3;   fCorrNegC3 = nullptr;
 }
 
 //____________________________________________________________________________________
@@ -49,6 +60,7 @@ THaAnalysisObject::EStatus HYPTOFDetector::Init( const TDatime & date )
   DBRequest list[] = {
     {"tof_num_planes",  &fNPlanes, kInt},
     {"tof_plane_names", &planenamelist, kString},
+    {"tof_max_elem",    &fMaxElement, kInt},
     {"tof_tdcrefcut",   &fTDC_RefTimeCut, kInt, 0, optional},
     {"tof_adcrefcut",   &fADC_RefTimeCut, kInt, 0, optional},
     {nullptr}
@@ -124,12 +136,67 @@ Int_t HYPTOFDetector::Decode( const THaEvData& evdata )
 Int_t HYPTOFDetector::ReadDatabase( const TDatime & date )
 {
   // cout << "HYPTOFDetector::ReadDatabase" << endl;
-  return 0;
+  char prefix[2];
+  prefix[0] = tolower(GetApparatus()->GetPrefix()[0]);
+  prefix[1] = '\0';
+
+  Int_t fNArrays = fNPlanes * fMaxElement;
+  // Tdc offset
+  fTdcOffset = new Int_t[fNPlanes];
+  fAdcTdcOffset = new Double_t[fNPlanes];
+  // Time correction calibration parameters
+  fCorrPosC1 = new Double_t[fNArrays];
+  fCorrNegC1 = new Double_t[fNArrays];
+  fCorrPosC2 = new Double_t[fNArrays];
+  fCorrNegC2 = new Double_t[fNArrays];
+  fCorrPosC3 = new Double_t[fNArrays];
+  fCorrNegC3 = new Double_t[fNArrays];
+
+  Bool_t optional = true;
+  DBRequest list[] = {
+    {"tof_tdc_to_time",   &fScinTdcToTime, kDouble, 0},
+    {"tof_tdc_min",       &fScinTdcMin,    kDouble, 0},
+    {"tof_tdc_max",       &fScinTdcMax,    kDouble, 0},
+    {"tof_tdc_offset",    fTdcOffset, kInt,    (UInt_t) fNPlanes, optional},
+    {"tof_adctdc_offset", fTdcOffset, kDouble, (UInt_t) fNPlanes, optional},
+    {"tof_c1_pos",        fCorrPosC1,  kDouble, (UInt_t) fNArrays, optional},
+    {"tof_c1_neg",        fCorrNegC1,  kDouble, (UInt_t) fNArrays, optional},
+    {"tof_c2_pos",        fCorrPosC2,  kDouble, (UInt_t) fNArrays, optional},
+    {"tof_c2_neg",        fCorrNegC2,  kDouble, (UInt_t) fNArrays, optional},
+    {"tof_c3_pos",        fCorrPosC3,  kDouble, (UInt_t) fNArrays, optional},
+    {"tof_c3_neg",        fCorrNegC3,  kDouble, (UInt_t) fNArrays, optional},
+    {nullptr}
+  };
+
+  for(Int_t i = 0; i < fNPlanes; i++) {
+    fTdcOffset[i] = 0.0;
+    fAdcTdcOffset[i] = 0.0;
+  }
+  
+  for(Int_t i = 0; i < fNArrays; i++){
+    fCorrPosC1[i] = 0.0;
+    fCorrNegC1[i] = 0.0;
+    fCorrPosC2[i] = 0.0;
+    fCorrNegC2[i] = 0.0;
+    fCorrPosC3[i] = 0.0;
+    fCorrNegC3[i] = 0.0;
+  }
+
+  gHcParms->LoadParmValues((DBRequest*)&list, prefix);
+
+  return kOK;
 }
 //____________________________________________________________________________________
 Int_t HYPTOFDetector::DefineVariables( EMode mode)
 {
   return 0;
+}
+
+//____________________________________________________________________________________
+Int_t HYPTOFDetector::GetScinIndex(Int_t iplane, Int_t ipaddle)
+{
+  // both plane and paddle index counts from 0
+  return fNPlanes*ipaddle + iplane;
 }
 
 //____________________________________________________________________________________

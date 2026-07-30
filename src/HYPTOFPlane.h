@@ -4,6 +4,7 @@
 #include "THaSubDetector.h"
 #include "TClonesArray.h"
 #include "HYPData.h"
+#include "THcHodoHit.h"
 
 using namespace std;
 using namespace HYPData;
@@ -24,6 +25,8 @@ class HYPTOFPlane : public THaSubDetector{
     virtual Int_t   FineProcess( TClonesArray& tracks );
 //    virtual Int_t   Print( Option_t* opt ="" ) const;
 
+    vector<THcHodoHit*> GetHits() { return fHodoHits; }
+
   protected:
 
     Int_t fPlaneNum;
@@ -36,23 +39,30 @@ class HYPTOFPlane : public THaSubDetector{
     Int_t fSampNSAT;
     Double_t fSampThreshold;
 
+    // HodoHits
+    vector<THcHodoHit*> fHodoHits;
+
     // Container for FADC data
     vector<FADCHitData> fPosAdcDataRaw;
     vector<FADCHitData> fNegAdcDataRaw;
     vector<FADCHitData> fPosAdcData;
     vector<FADCHitData> fNegAdcData;
 
+    // Good ADC and TDC Data
+    vector<TOFEvent> fGoodPosData;
+    vector<TOFEvent> fGoodNegData;
+
+    // Sample data
     vector<FADCHitData> fPosAdcSampDataRaw;
     vector<FADCHitData> fNegAdcSampDataRaw;
     vector<FADCHitData> fPosAdcSampData;
     vector<FADCHitData> fNegAdcSampData;
 
+    // Pedestal
     vector<Int_t> fPosAdcPedRaw;
     vector<Int_t> fNegAdcPedRaw;
     vector<Double_t> fPosAdcPed;
     vector<Double_t> fNegAdcPed;
-    vector<Double_t> fGoodPosAdcPed;
-    vector<Double_t> fGoodNegAdcPed;
 
     vector<Int_t> fPosAdcErrorFlag;
     vector<Int_t> fNegAdcErrorFlag;
@@ -65,10 +75,30 @@ class HYPTOFPlane : public THaSubDetector{
     vector<UInt_t> fPosSampWaveform;
     vector<UInt_t> fNegSampWaveform;
 
+    // Time correction 
+    class TOFCalib {
+      private:
+        // assume three parameters
+        Double_t TWCorr[3];
+      public:
+        void SetParams(Double_t c1, Double_t c2, Double_t c3) {
+          TWCorr[0] = c1; TWCorr[1] = c2; TWCorr[2] = c3;
+        }
+        Double_t GetPar(Int_t i) const { return TWCorr[i]; }
+    };
+    vector<TOFCalib> fPosCalib;
+    vector<TOFCalib> fNegCalib;    
+
+    // Reference time variables
     Double_t fTdcRefTime[2];
     Double_t fTdcRefDiffTime[2];
     Double_t fAdcRefTime[2];
     Double_t fAdcRefDiffTime[2];
+
+    Double_t *fPosAdcTimeWindowMin;
+    Double_t *fPosAdcTimeWindowMax;
+    Double_t *fNegAdcTimeWindowMin;
+    Double_t *fNegAdcTimeWindowMax;
 
     // Parameters from parent detector
     Int_t fTdcOffset;
@@ -82,6 +112,7 @@ class HYPTOFPlane : public THaSubDetector{
 
     Int_t GetNumPosAdcHits() { return static_cast<Int_t>(fPosAdcData.size()); }
     Int_t GetNumNegAdcHits() { return static_cast<Int_t>(fNegAdcData.size()); }
+    void DoTimeCorrection(Int_t signal, Int_t pad_index);
 
   ClassDef(HYPTOFPlane, 0);
 
