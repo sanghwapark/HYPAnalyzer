@@ -37,10 +37,12 @@ class HYPCherenkov : public THaNonTrackingDetector, THcHitList {
   Int_t     fADC_RefTimeCut;
   Double_t  fAdcTdcOffset;
   Int_t     fUseSampWaveform;
+  Int_t     fOutSampWaveform;
   Double_t  fSampThreshold;
   Int_t     fSampNSA;
   Int_t     fSampNSAT;
   Int_t     fSampNSB;
+  Int_t     fSampNPED;
   Int_t     fDebugAdc;
 
   Double_t  *fAdcPosTimeWindowMin;
@@ -62,10 +64,9 @@ class HYPCherenkov : public THaNonTrackingDetector, THcHitList {
   vector<FADCHitData> fPosSampData;
   vector<FADCHitData> fNegSampData;
 
-  vector<Int_t> fPosAdcPedRaw;
-  vector<Int_t> fNegAdcPedRaw;
-  vector<Double_t> fPosAdcPed;
-  vector<Double_t> fNegAdcPed;
+  vector<Double_t> fPosSampWaveform; //waveform data
+  vector<Double_t> fNegSampWaveform; //waveform data
+
   vector<Double_t> fGoodPosAdcPed;
   vector<Double_t> fGoodNegAdcPed;
 

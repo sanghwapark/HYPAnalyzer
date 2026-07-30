@@ -319,8 +319,7 @@ Int_t HYPDCPlane::ProcessHits(TClonesArray* rawhits, Int_t nexthit)
       /* Sort into early, late and ontime */
       Int_t rawtime = hit->GetRawTdcHit().GetTimeRaw(mhit); // rawtime in ns
       Int_t refcortime = hit->GetRawTdcHit().GetTime(mhit); // ref time subtracted time
-      //if(refcortime < 0) refcortime = refcortime + 1024*4;
-
+      // if(refcortime < 0) refcortime = refcortime + 1024*4;
       Double_t time = refcortime - fPlaneTimeZero - wire->GetTOffset();
 
       new( (*fRawHits)[nextRawHit++] ) HYPDCHit(wire, rawtime, refcortime, time, this);	
@@ -332,7 +331,7 @@ Int_t HYPDCPlane::ProcessHits(TClonesArray* rawhits, Int_t nexthit)
       }
     }
     ihit++;
-  }
+  } 
   return(ihit);
 }
 

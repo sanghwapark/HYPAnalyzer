@@ -24,7 +24,7 @@ using namespace std;
 
 //_____________________________________________________________________
 HYPCherenkov::HYPCherenkov( const char* name, const char* description,
-		      THaApparatus* apparatus) :
+			    THaApparatus* apparatus) :
   THaNonTrackingDetector(name, description, apparatus), 
   fNhits(0), fPresentP(0)
 {
@@ -97,18 +97,17 @@ void HYPCherenkov::Clear( Option_t* opt )
 
   std::fill(fPosNpe.begin(), fPosNpe.end(), 0);
   std::fill(fNegNpe.begin(), fNegNpe.end(), 0);
-  std::fill(fNumGoodPosAdcHits.begin(), fNumGoodPosAdcHits.end(), 0);
-  std::fill(fNumGoodNegAdcHits.begin(), fNumGoodNegAdcHits.end(), 0);
-  std::fill(fPosAdcPedRaw.begin(), fPosAdcPedRaw.end(), 0);
-  std::fill(fNegAdcPedRaw.begin(), fNegAdcPedRaw.end(), 0);
-  std::fill(fPosAdcPed.begin(), fPosAdcPed.end(), 0);
-  std::fill(fNegAdcPed.begin(), fNegAdcPed.end(), 0);
   std::fill(fGoodPosAdcPed.begin(), fGoodPosAdcPed.end(), 0);
   std::fill(fGoodNegAdcPed.begin(), fGoodNegAdcPed.end(), 0);
+  std::fill(fNumGoodPosAdcHits.begin(), fNumGoodPosAdcHits.end(), 0);
+  std::fill(fNumGoodNegAdcHits.begin(), fNumGoodNegAdcHits.end(), 0);
 
   fPosNpeSum = 0.;
   fNegNpeSum = 0.;
   fNpeSum = 0.;
+
+  fPosSampWaveform.clear();
+  fNegSampWaveform.clear();
 }
 
 //_____________________________________________________________________
@@ -161,7 +160,9 @@ Int_t HYPCherenkov::ReadDatabase( const TDatime& date )
     {"_SampNSA",           &fSampNSA,         kInt,0,1},
     {"_SampNSAT",          &fSampNSAT,        kInt,0,1},
     {"_SampNSB",           &fSampNSB,         kInt,0,1},
+    {"_SampNPED",          &fSampNPED,        kInt,0,1},
     {"_UseSampWaveform",   &fUseSampWaveform, kInt,0,1},
+    {"_OutSampWaveform",   &fOutSampWaveform, kInt,0,1},
     {"_adcrefcut",         &fADC_RefTimeCut,  kInt,0,1},
     {"_debug_adc",         &fDebugAdc,        kInt,0,1},
     {"_adc_tdc_offset",    &fAdcTdcOffset,    kDouble, 0, 1},
@@ -176,12 +177,14 @@ Int_t HYPCherenkov::ReadDatabase( const TDatime& date )
 
   // Default values
   fADC_RefTimeCut = 0;
-  fAdcTdcOffset = 0.;
+  fAdcTdcOffset = 0;
   fSampThreshold = 5.;
   fSampNSA = 0;   // use value stored in event 125 info
   fSampNSB = 0;   // use value stored in event 125 info
   fSampNSAT = 2;  // default value in THcRawHit::SetF250Params
+  fSampNPED = 4;  // number of pedestal samples
   fUseSampWaveform = 0; // 0= do not use , 1 = use Sample Waveform
+  fOutSampWaveform = 0;
   fDebugAdc = 0;  // Save raw adc variables, default = 0
 
   gHcParms->LoadParmValues((DBRequest*)&list, prefix.c_str());
@@ -197,15 +200,10 @@ Int_t HYPCherenkov::ReadDatabase( const TDatime& date )
 
   fPosNpe.assign(fNelem, 0.0);
   fNegNpe.assign(fNelem, 0.0);
-
-  fPosAdcPedRaw.assign(fNelem, 0.0);
-  fNegAdcPedRaw.assign(fNelem, 0.0);
-  fPosAdcPed.assign(fNelem, 0.0);
-  fNegAdcPed.assign(fNelem, 0.0);
-  fGoodPosAdcPed.assign(fNelem, 0.0);
+  fGoodPosAdcPed.assign(fNelem, 0.0);     // single ped per pmt
   fGoodNegAdcPed.assign(fNelem, 0.0);
-  fNumGoodPosAdcHits.assign(fNelem, 0);
-  fNumGoodNegAdcHits.assign(fNelem, 0);
+  fNumGoodPosAdcHits.assign(fNelem, 0.0); // occupancy
+  fNumGoodNegAdcHits.assign(fNelem, 0.0);
 
   fIsInit = true;
 
@@ -219,13 +217,13 @@ Int_t HYPCherenkov::DefineVariables( EMode mode )
   if (fDebugAdc) {
     RVarDef vars[] = {
       // FIXME; put the counters back?
-      // {"numPosAdcHits",        "Number of Positive ADC Hits Per PMT",      "fNumPosAdcHits"},        // Aerogel occupancy
-      // {"totNumPosAdcHits",     "Total Number of Positive ADC Hits",        "fTotNumPosAdcHits"},     // Aerogel multiplicity
-      // {"numNegAdcHits",        "Number of Negative ADC Hits Per PMT",      "fNumNegAdcHits"},        // Aerogel occupancy
-      // {"totNumNegAdcHits",     "Total Number of Negative ADC Hits",        "fTotNumNegAdcHits"},     // Aerogel multiplicity
-      // {"totnumAdcHits",       "Total Number of ADC Hits Per PMT",          "fTotNumAdcHits"},        // Aerogel multiplicity
-      {"posPadNumRaw"        "Paddle number",                     "fPosDataRaw.paddle"},
-      {"posAdcPedRaw",       "Positive Raw ADC pedestals",        "fPosAdcPedRaw"},
+      // {"numPosAdcHits",        "Number of Positive ADC Hits Per PMT",      "fNumPosAdcHits"},        // pos pmt occupancy
+      // {"totNumPosAdcHits",     "Total Number of Positive ADC Hits",        "fTotNumPosAdcHits"},     // pos multiplicity
+      // {"numNegAdcHits",        "Number of Negative ADC Hits Per PMT",      "fNumNegAdcHits"},        // neg pmt occupancy
+      // {"totNumNegAdcHits",     "Total Number of Negative ADC Hits",        "fTotNumNegAdcHits"},     // neg multiplicity
+      // {"totnumAdcHits",       "Total Number of ADC Hits Per PMT",          "fTotNumAdcHits"},        // tot multiplicity
+      {"posPadNumRaw",       "Paddle number",                     "fPosDataRaw.paddle"},
+      {"posAdcPedRaw",       "Positive Raw ADC pedestals",        "fPosDataRaw.Ped"},
       {"posAdcPulseIntRaw",  "Positive Raw ADC pulse integrals",  "fPosDataRaw.PulseInt"},
       {"posAdcPulseAmpRaw",  "Positive Raw ADC pulse amplitudes", "fPosDataRaw.PulseAmp"},
       {"posAdcPulseTimeRaw", "Positive Raw ADC pulse times",      "fPosDataRaw.PulseTime"},
@@ -234,7 +232,7 @@ Int_t HYPCherenkov::DefineVariables( EMode mode )
       {"posAdcPulseAmp",     "Positive ADC pulse amplitudes",     "fPosData.PulseAmp"},
       {"posAdcPulseTime",    "Positive ADC pulse times",          "fPosData.PulseTime"},
       {"negPadNumRaw",       "Paddle number",                     "fNegDataRaw.paddle"},
-      {"negAdcPedRaw",       "Negative Raw ADC pedestals",        "fNegAdcPedRaw"},
+      {"negAdcPedRaw",       "Negative Raw ADC pedestals",        "fNegDataRaw.Ped"},
       {"negAdcPulseIntRaw",  "Negative Raw ADC pulse integrals",  "fNegDataRaw.PulseInt"},
       {"negAdcPulseAmpRaw",  "Negative Raw ADC pulse amplitudes", "fNegDataRaw.PulseAmp"},
       {"negAdcPulseTimeRaw", "Negative Raw ADC pulse times",      "fNegDataRaw.PulseTime"},
@@ -244,28 +242,46 @@ Int_t HYPCherenkov::DefineVariables( EMode mode )
       {"negAdcPulseTime",    "Negative ADC pulse times",          "fNegData.PulseTime"},
       {"posErrorFlag",       "Error Flag for When FPGA Fails",    "fPosErrorFlag"},
       {"negErrorFlag",       "Error Flag for When FPGA Fails",    "fNegErrorFlag"},
+      // Add sample data output for check
+      {"posAdcSampPulseIntRaw", "Postive Raw Samp Adc pulse Integral", "fPosSampDataRaw.PulseInt"},
+      {"posAdcSampPedRaw",      "Postive Raw Samp Adc pedestal",       "fPosSampDataRaw.Ped"},
+      {"posAdcSampPulseAmpRaw", "Postive Raw Samp Adc amp",            "fPosSampDataRaw.PulseAmp"},
+      {"posAdcSampPulseTimeRaw","Postive Raw Samp Adc time",           "fPosSampDataRaw.PulseTime"},
+      {"posAdcSampPulseInt",    "Postive Samp Adc pulse Integral",     "fPosSampData.PulseInt"},
+      {"posAdcSampPed",         "Postive Samp Adc pedestal",           "fPosSampData.Ped"},
+      {"posAdcSampPulseAmp",    "Postive Samp Adc pulse amp",          "fPosSampData.PulseAmp"},
+      {"posAdcSampPulseTime",   "Postive Samp Adc pulse time",         "fPosSampData.PulseTime"},
       { nullptr }
     };
     DefineVarsFromList( vars, mode);
   }
 
+  if(fOutSampWaveform == 1) {
+    RVarDef vars[] = {
+      {"posSampWaveform",   "FADC Sample Waveform for Pos ADC",  "fPosSampWaveform"},
+      {"negSampWaveform",   "FADC Sample Waveform for Neg ADC",  "fNegSampWaveform"},
+      {nullptr}
+    };
+    DefineVarsFromList( vars, mode);    
+  }
+
   RVarDef vars[] = {
-    {"posNpe",      "Number of Positive PEs per PMT", "fPosNpe"},
-    {"negNpe",      "Number of Negative PEs per PMT", "fNegNpe"},
+    {"posPadNum",   "Paddle number for Pos ADC",   "fPosDataGood.paddle"},
+    {"negPadNum",   "Paddle number for Neg ADC",   "fNegDataGood.paddle"},
+    {"posNpe",      "Number of Positive PEs", "fPosNpe"},
+    {"negNpe",      "Number of Negative PEs", "fNegNpe"},
     {"posNpeSum",   "Total Number of Positive PEs", "fPosNpeSum"},
     {"negNpeSum",   "Total Number of Negative PEs", "fNegNpeSum"},
     {"npeSum",      "Total Number of PEs",          "fNpeSum"},
-    {"posPadNum",              "Paddle number for Pos ADC",              "fPosDataGood.paddle"},
     {"goodPosAdcPed",          "Good Positive ADC pedestals",            "fGoodPosAdcPed"},
     {"goodPosAdcPulseInt",     "Good Positive ADC pulse integrals",      "fPosDataGood.PulseInt"},
     {"goodPosAdcPulseAmp",     "Good Positive ADC pulse amplitudes",     "fPosDataGood.PulseAmp"},
     {"goodPosAdcPulseTime",    "Good Positive ADC pulse times",          "fPosDataGood.PulseTime"},
-    {"negPadNum",              "Paddle number for Neg ADC",              "fNegDataGood.paddle"},
     {"goodNegAdcPed",          "Good Negative ADC pedestals",            "fGoodNegAdcPed"},
     {"goodNegAdcPulseInt",     "Good Negative ADC pulse integrals",      "fNegDataGood.PulseInt"},
     {"goodNegAdcPulseAmp",     "Good Negative ADC pulse amplitudes",     "fNegDataGood.PulseAmp"},
     {"goodNegAdcPulseTime",    "Good Negative ADC pulse times",          "fNegDataGood.PulseTime"},
-    {"numGoodPosAdcHits",      "Number of Good Pos ADC Hits per PMT",    "fNumGoodPosAdcHits"}, // occupancy
+    {"numGoodPosAdcHits",      "Number of Good Pos ADC Hits per PMT",    "fNumGoodPosAdcHits"}, //occupancy
     {"numGoodNegAdcHits",      "Number of Good Neg ADC Hits per PMT",    "fNumGoodNegAdcHits"}, // occupancy
     {nullptr}
   };
@@ -283,7 +299,6 @@ Int_t HYPCherenkov::Decode( const THaEvData& evdata )
 
   fNhits = DecodeToHitList(evdata, !present);
   
-  // FIXME: Define a function to store data and call it for pos/neg
   Int_t ihit = 0;
   while(ihit < fNhits) {
     THcCherenkovHit* hit         = (THcCherenkovHit*) fRawHitList->At(ihit);
@@ -294,34 +309,32 @@ Int_t HYPCherenkov::Decode( const THaEvData& evdata )
     Int_t errorflag = -1;
     if ( fUseSampWaveform == 0 ) {
       for (UInt_t thit = 0; thit < rawPosAdcHit.GetNPulses(); thit++) {
-	FADCHitData posdata_raw;
-	FADCHitData posdata;
+        FADCHitData posdata_raw;
+        FADCHitData posdata;
 
-	rawPosAdcHit.SetF250Params(70, 5, 4);
+        rawPosAdcHit.SetF250Params(70, 5, 4);
 
-	posdata_raw.paddle = npmt;
-	posdata_raw.Ped = rawPosAdcHit.GetPedRaw();
-	posdata_raw.PulseInt = rawPosAdcHit.GetPulseIntRaw(thit);
-	posdata_raw.PulseAmp = rawPosAdcHit.GetPulseAmpRaw(thit);
-	posdata_raw.PulseTime = rawPosAdcHit.GetPulseTimeRaw(thit);
-       
-	posdata.paddle = npmt;
-	posdata.Ped = rawPosAdcHit.GetPed();
-	posdata.PulseInt = rawPosAdcHit.GetPulseInt(thit);
-	posdata.PulseAmp = rawPosAdcHit.GetPulseAmp(thit);
-	posdata.PulseTime = rawPosAdcHit.GetPulseTime(thit) + fAdcTdcOffset;
+        posdata_raw.paddle = npmt;
+        posdata_raw.Ped = rawPosAdcHit.GetPedRaw();
+        posdata_raw.PulseInt = rawPosAdcHit.GetPulseIntRaw(thit);
+        posdata_raw.PulseAmp = rawPosAdcHit.GetPulseAmpRaw(thit);
+        posdata_raw.PulseTime = rawPosAdcHit.GetPulseTimeRaw(thit);
+              
+        posdata.paddle = npmt;
+        posdata.Ped = rawPosAdcHit.GetPed();
+        posdata.PulseInt = rawPosAdcHit.GetPulseInt(thit);
+        posdata.PulseAmp = rawPosAdcHit.GetPulseAmp(thit);
+        posdata.PulseTime = rawPosAdcHit.GetPulseTime(thit) + fAdcTdcOffset; 
 
-	if(posdata_raw.PulseAmp > 0)  errorflag = 0;
-	if(posdata_raw.PulseAmp <= 0) errorflag = 1;
-	if(posdata_raw.PulseAmp <= 0 && rawPosAdcHit.GetNSamples() > 0) errorflag = 2;
+        if(posdata_raw.PulseAmp > 0)  errorflag = 0;
+        if(posdata_raw.PulseAmp <= 0) errorflag = 1;
+        if(posdata_raw.PulseAmp <= 0 && rawPosAdcHit.GetNSamples() > 0) errorflag = 2;
 
-	fPosDataRaw.emplace_back(posdata_raw);
-	fPosData.emplace_back(posdata);
-	fPosErrorFlag.emplace_back(errorflag);
-	fPosAdcPedRaw[npmt-1] = posdata_raw.Ped;
-	fPosAdcPed[npmt-1] = posdata.Ped;
+        fPosDataRaw.emplace_back(posdata_raw);
+        fPosData.emplace_back(posdata);
+        fPosErrorFlag.emplace_back(errorflag);
 
-	// FIXME: Do we want to add an option to use pedestal from DB
+      	// FIXME: Do we want to add an option to use pedestal from DB?
       }
     }// Using Pulse Data
 
@@ -330,11 +343,19 @@ Int_t HYPCherenkov::Decode( const THaEvData& evdata )
       rawPosAdcHit.SetSampThreshold(fSampThreshold);
       if (fSampNSA == 0) fSampNSA=rawPosAdcHit.GetF250_NSA();
       if (fSampNSB == 0) fSampNSB=rawPosAdcHit.GetF250_NSB();
-      rawPosAdcHit.SetF250Params(fSampNSA,fSampNSB,4); // Set NPED =4
+      rawPosAdcHit.SetF250Params(fSampNSA,fSampNSB,fSampNPED); // Set NPED =4
       if (fSampNSAT != 2) rawPosAdcHit.SetSampNSAT(fSampNSAT);
       rawPosAdcHit.SetSampIntTimePedestalPeak();
       
-      // FIXME: Do we want to save waveform data?
+      // Save waveform data
+      if(fOutSampWaveform == 1) {
+        fPosSampWaveform.push_back(float(npmt));
+        fPosSampWaveform.push_back(float(rawPosAdcHit.GetNSamples()));
+	
+	for(UInt_t thit = 0; thit < rawPosAdcHit.GetNSamples(); thit++)
+	  fPosSampWaveform.push_back(rawPosAdcHit.GetSampleRaw(thit));
+      }	
+
       for (UInt_t thit = 0; thit < rawPosAdcHit.GetNSampPulses(); thit++) {
 
         FADCHitData possampdata_raw;
@@ -356,16 +377,12 @@ Int_t HYPCherenkov::Decode( const THaEvData& evdata )
         fPosSampData.emplace_back(possampdata);
 
         if ( rawPosAdcHit.GetNPulses() ==0 || fUseSampWaveform ==1 ) {
-
           errorflag = 3;
           if(fUseSampWaveform) errorflag = 0;
 
           fPosDataRaw.emplace_back(possampdata_raw);
           fPosData.emplace_back(possampdata);
       	  fPosErrorFlag.emplace_back(errorflag);
-          fPosAdcPedRaw[npmt-1] = possampdata_raw.Ped;
-          fPosAdcPed[npmt-1] = possampdata.Ped;
-
         }
       }// samp pulse loop
     }
@@ -375,40 +392,47 @@ Int_t HYPCherenkov::Decode( const THaEvData& evdata )
     if ( fUseSampWaveform == 0 ) {
       for (UInt_t thit = 0; thit < rawNegAdcHit.GetNPulses(); thit++) {
 
-      FADCHitData negdata_raw;
-      FADCHitData negdata;
+	FADCHitData negdata_raw;
+	FADCHitData negdata;
 
-      negdata_raw.paddle = npmt;
-      negdata_raw.Ped = rawNegAdcHit.GetPedRaw();
-      negdata_raw.PulseInt = rawNegAdcHit.GetPulseIntRaw(thit);
-      negdata_raw.PulseAmp = rawNegAdcHit.GetPulseAmpRaw(thit);
-      negdata_raw.PulseTime = rawNegAdcHit.GetPulseTimeRaw(thit);
+	negdata_raw.paddle = npmt;
+	negdata_raw.Ped = rawNegAdcHit.GetPedRaw();
+	negdata_raw.PulseInt = rawNegAdcHit.GetPulseIntRaw(thit);
+	negdata_raw.PulseAmp = rawNegAdcHit.GetPulseAmpRaw(thit);
+	negdata_raw.PulseTime = rawNegAdcHit.GetPulseTimeRaw(thit);
        
-      negdata.paddle = npmt;
-      negdata.Ped = rawNegAdcHit.GetPed();
-      negdata.PulseInt = rawNegAdcHit.GetPulseInt(thit);
-      negdata.PulseAmp = rawNegAdcHit.GetPulseAmp(thit);
-      negdata.PulseTime = rawNegAdcHit.GetPulseTime(thit) + fAdcTdcOffset;
+	negdata.paddle = npmt;
+	negdata.Ped = rawNegAdcHit.GetPed();
+	negdata.PulseInt = rawNegAdcHit.GetPulseInt(thit);
+	negdata.PulseAmp = rawNegAdcHit.GetPulseAmp(thit);
+	negdata.PulseTime = rawNegAdcHit.GetPulseTime(thit) + fAdcTdcOffset;
 
-      if(negdata_raw.PulseAmp> 0) errorflag = 0;
-      if(negdata_raw.PulseAmp <= 0) errorflag = 1;
-      if(negdata_raw.PulseAmp <= 0 && rawNegAdcHit.GetNSamples() > 0) errorflag = 2;
+	if(negdata_raw.PulseAmp> 0) errorflag = 0;
+	if(negdata_raw.PulseAmp <= 0) errorflag = 1;
+	if(negdata_raw.PulseAmp <= 0 && rawNegAdcHit.GetNSamples() > 0) errorflag = 2;
 
-      fNegDataRaw.emplace_back(negdata_raw);
-      fNegData.emplace_back(negdata);
-      fNegErrorFlag.emplace_back(errorflag);
-      fNegAdcPedRaw[npmt-1] = negdata_raw.Ped;
-      fNegAdcPed[npmt-1] = negdata.Ped;
+	fNegDataRaw.emplace_back(negdata_raw);
+	fNegData.emplace_back(negdata);
+	fNegErrorFlag.emplace_back(errorflag);
       }
     }
     if (rawNegAdcHit.GetNSamples() >0 ) {
       rawNegAdcHit.SetSampThreshold(fSampThreshold);
       if (fSampNSA == 0) fSampNSA=rawNegAdcHit.GetF250_NSA();
       if (fSampNSB == 0) fSampNSB=rawNegAdcHit.GetF250_NSB();
-      rawNegAdcHit.SetF250Params(fSampNSA,fSampNSB,4); // Set NPED =4
+      rawNegAdcHit.SetF250Params(fSampNSA,fSampNSB,fSampNPED); // Set NPED =4
       if (fSampNSAT != 2) rawNegAdcHit.SetSampNSAT(fSampNSAT);
       rawNegAdcHit.SetSampIntTimePedestalPeak();
       
+      // Save waveform data
+      if(fOutSampWaveform == 1) {
+	fNegSampWaveform.push_back(float(npmt));
+	fNegSampWaveform.push_back(float(rawNegAdcHit.GetNSamples()));
+	
+	for(UInt_t thit = 0; thit < rawNegAdcHit.GetNSamples(); thit++)
+	  fNegSampWaveform.push_back(rawNegAdcHit.GetSampleRaw(thit));
+      }	
+
       for (UInt_t thit = 0; thit < rawNegAdcHit.GetNSampPulses(); thit++) {
 
         FADCHitData negsampdata_raw;
@@ -437,9 +461,6 @@ Int_t HYPCherenkov::Decode( const THaEvData& evdata )
           fNegDataRaw.emplace_back(negsampdata_raw);
           fNegData.emplace_back(negsampdata);
       	  fNegErrorFlag.emplace_back(errorflag);
-          fNegAdcPedRaw[npmt-1] = negsampdata_raw.Ped;
-          fNegAdcPed[npmt-1] = negsampdata.Ped;
-
         }
       }// samp pulse loop
     }// Negative PMT
@@ -454,7 +475,7 @@ Int_t HYPCherenkov::Decode( const THaEvData& evdata )
 Int_t HYPCherenkov::CoarseProcess( TClonesArray& tracks )
 {
   
-  // FIXME: Add start time correction?
+  // FIXME: Add start time correction
   Double_t start_time = 0.0;
 
   // Loop over pos adc hits
@@ -466,8 +487,12 @@ Int_t HYPCherenkov::CoarseProcess( TClonesArray& tracks )
     if(pass_timecut) {
       // Calculate NPE
       Double_t npe = fPosGain[ipmt] * adchit.PulseInt; // use pulse int or pulse amp?
+      fPosNpe.at(ipmt) = npe;
       fPosNpeSum += npe;
       fPosNpe.at(ipmt) = npe;
+
+      fGoodPosAdcPed.at(ipmt) = adchit.Ped;
+      fNumGoodPosAdcHits.at(ipmt) += 1; // occupancy per pmt
 
       adchit.Is_good_hit = 1; // set good hit flag to true
       fPosDataGood.emplace_back(adchit); // add to the good hit list
@@ -485,8 +510,12 @@ Int_t HYPCherenkov::CoarseProcess( TClonesArray& tracks )
     if(pass_timecut) {
       // Calculate NPE
       Double_t npe = fNegGain[ipmt] * adchit.PulseInt; // use pulse int or pulse amp?
+      fNegNpe.at(ipmt) = npe;
       fNegNpeSum += npe;
       fNegNpe.at(ipmt) = npe;
+
+      fGoodNegAdcPed.at(ipmt) = adchit.Ped;
+      fNumGoodNegAdcHits.at(ipmt) += 1;
 
       adchit.Is_good_hit = 1; // set good hit flag to true
       fNegDataGood.emplace_back(adchit); // add to the good hit list
