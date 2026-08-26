@@ -78,6 +78,7 @@ Int_t HYPTOFPlane::ReadDatabase( const TDatime& date )
     {"tof_SampThreshold", &fSampThreshold, kDouble, 0, optional},
     {"tof_outputSampWaveform", &fOutputSampWaveform, kInt, 0, optional},
     {"tof_UseSampWaveform", &fUseSampWaveform, kInt, 0, optional},
+    {"tof_fine_calib", &fFineCalib, kDouble, 0, optional},
     {Form("tof_PosAdcTimeWindowMin_%s",GetName()), fPosAdcTimeWindowMin, kDouble, (UInt_t) fNelem, optional},
     {Form("tof_PosAdcTimeWindowMax_%s",GetName()), fPosAdcTimeWindowMax, kDouble, (UInt_t) fNelem, optional},
     {Form("tof_NegAdcTimeWindowMin_%s",GetName()), fNegAdcTimeWindowMin, kDouble, (UInt_t) fNelem, optional},
@@ -92,6 +93,7 @@ Int_t HYPTOFPlane::ReadDatabase( const TDatime& date )
   fSampNSB = 0;
   fSampNSAT = 2;
   fSampThreshold = 5.;
+  fFineCalib = 128.; // FIXME: calibration per plane? per module would make more sense.. (William even said per channel ideally...)
 
   // AdcTime window cuts
   fPosAdcTimeWindowMin = new Double_t[fNelem];
@@ -114,6 +116,7 @@ Int_t HYPTOFPlane::ReadDatabase( const TDatime& date )
   fScinTdcMin=parent->GetTdcMin();
   fScinTdcMax=parent->GetTdcMax();
   fScinTdcToTime=parent->GetTdcToTime();
+  fTdcThrs = parent->GetTDCThrs();
 
   // Time correction calib parameters
   fPosCalib.resize(fNelem);
@@ -122,12 +125,10 @@ Int_t HYPTOFPlane::ReadDatabase( const TDatime& date )
     Int_t scin_index = parent->GetScinIndex(fPlaneNum-1, i);
     Double_t c1_pos = parent->GetCorrPosC1(scin_index);
     Double_t c2_pos = parent->GetCorrPosC2(scin_index);
-    Double_t c3_pos = parent->GetCorrPosC3(scin_index);
     Double_t c1_neg = parent->GetCorrNegC1(scin_index);
     Double_t c2_neg = parent->GetCorrNegC2(scin_index);
-    Double_t c3_neg = parent->GetCorrNegC3(scin_index);
-    fPosCalib[i].SetParams(c1_pos, c2_pos, c3_pos);
-    fNegCalib[i].SetParams(c1_neg, c2_neg, c3_neg);
+    fPosCalib[i].SetParams(c1_pos, c2_pos);
+    fNegCalib[i].SetParams(c1_neg, c2_neg);
   }
 
   // Init some vars
@@ -280,6 +281,23 @@ Int_t HYPTOFPlane::Decode( const THaEvData& evdata )
 }
 
 //__________________________________________________________________
+Double_t HYPTOFPlane::DecodeTDCData(Int_t tdc)
+{
+  // Decode lower 18-bit of vfTDC data 
+  // This was done in vfTDC.f and it passes the calculated time in ns
+  // However, the slot data type is integer and therefore it doesn't preserve the precision
+
+  UInt_t time_bits = static_cast<UInt_t>(tdc);
+  UInt_t coarse_time = (time_bits >> 8) & 0x3FF; // 10-bit
+  UInt_t two_ns = (time_bits >> 7) & 0x1; // 1-bit
+  UInt_t fine_time = (time_bits & 0x7F); // 7-bit
+
+  // 10ns added back (trigger time shift, see comment in vfTDC.cxx)
+  Double_t time = (coarse_time * 4) + (two_ns * 2) + (fine_time * 2)/fFineCalib + 10.;
+  return time;
+} 
+
+//__________________________________________________________________
 Int_t HYPTOFPlane::ProcessHits(TClonesArray *rawhits, int nexthit)
 {
 
@@ -325,16 +343,18 @@ Int_t HYPTOFPlane::ProcessHits(TClonesArray *rawhits, int nexthit)
       // TDC ref time
       if( rawTdcHit.GetNHits() > 0 && rawTdcHit.HasRefTime()) {
         if( fTdcRefTime[signal] == kBig ) {
-          fTdcRefTime[signal] = rawTdcHit.GetRefTime();
+          fTdcRefTime[signal] = DecodeTDCData(rawTdcHit.GetRefTime());
+          // In the current set up, this doesn't mean much. May need to udpate THcHitList specific for vfTDC          
           fTdcRefDiffTime[signal] = rawTdcHit.GetRefDiffTime();
-          //cout << "RefTime: " << rawTdcHit.GetRefTime() << endl;
         }
       }
 
       // TDC
       for(UInt_t thit = 0; thit < rawTdcHit.GetNHits(); thit++){
         Int_t good_tdc_hit_flag = 0;
-        Double_t this_tdc = rawTdcHit.GetTime(thit) + fTdcOffset;
+        Double_t time_raw = DecodeTDCData(rawTdcHit.GetTimeRaw(thit));
+        //Double_t this_tdc = rawTdcHit.GetTime(thit) + fTdcOffset;
+        Double_t this_tdc = (time_raw - fTdcRefTime[signal]) + fTdcOffset;
         //cout << "Plane, PMT, TDC: " << fPlaneNum << " " << padnum << " " << rawTdcHit.GetTimeRaw(thit) << endl;
         if( this_tdc >= fScinTdcMin && this_tdc <= fScinTdcMax ) {
           good_tdc_hit_flag = 1;
@@ -346,7 +366,7 @@ Int_t HYPTOFPlane::ProcessHits(TClonesArray *rawhits, int nexthit)
         }
         TDCData t_data;
         t_data.paddle = padnum;
-        t_data.TimeRaw = rawTdcHit.GetTimeRaw(thit);
+        t_data.TimeRaw = time_raw;
         t_data.Time = this_tdc; // reference subtracted time
         t_data.Is_good_hit = good_tdc_hit_flag;
 
@@ -558,33 +578,44 @@ Int_t HYPTOFPlane::ProcessHits(TClonesArray *rawhits, int nexthit)
 //__________________________________________________________________
 void HYPTOFPlane::DoTimeCorrection(Int_t signal, Int_t pad_index)
 {
-  // pulse hieght corrections from Toshi's prelim analysis
-  // assume three parameter fits
-  // To-dos: Add other corrections, propagation time, time-of-flight, ..
+  // Time-walk corrections
+  // assume three parameter fits (usually par[0] = 0; effectively two pars fits)
+  // To-dos: Add other corrections (propagation time, ..)
 
   if(signal == 0) {
+    // For positive signal:
     Double_t t_uncorr = fGoodPosData[pad_index].time_uncorr;
-    Double_t pulse_amp = fGoodPosData[pad_index].amp;
+    Double_t pulse_amp = fGoodPosData[pad_index].adc;
 
     // calib parameters
     Double_t c1 = fPosCalib[pad_index].GetPar(0);
     Double_t c2 = fPosCalib[pad_index].GetPar(1);
-    Double_t c3 = fPosCalib[pad_index].GetPar(2);
 
-    Double_t t_corr = t_uncorr - (c1 + c2/sqrt(pulse_amp) + c3/pulse_amp);
-    fGoodPosData[pad_index].SetTimeCorr(t_corr);
+    // Calculate TW corrections
+    Double_t tw_corr = c1 + pow(pulse_amp/fTdcThrs, c2);
+
+    // Corrected times
+    Double_t tdctime_twcorr = t_uncorr - tw_corr; // corrected TDC time
+    Double_t adctime_twcorr = fGoodPosData[pad_index].adctime - tw_corr; // corrected ADC time
+
+    fGoodPosData[pad_index].SetTimeCorr(tdctime_twcorr);
 
   } else{
     Double_t t_uncorr = fGoodNegData[pad_index].time_uncorr;
-    Double_t pulse_amp = fGoodNegData[pad_index].amp;
+    Double_t pulse_amp = fGoodNegData[pad_index].adc;
 
     // calib parameters
     Double_t c1 = fNegCalib[pad_index].GetPar(0);
     Double_t c2 = fNegCalib[pad_index].GetPar(1);
-    Double_t c3 = fNegCalib[pad_index].GetPar(2);
 
-    Double_t t_corr = t_uncorr - (c1 + c2/sqrt(pulse_amp) + c3/pulse_amp);
-    fGoodNegData[pad_index].SetTimeCorr(t_corr);    
+    // Calculate TW corrections
+    Double_t tw_corr = c1 + pow(pulse_amp/fTdcThrs, c2);
+
+    // Corrected times
+    Double_t tdctime_twcorr = t_uncorr - tw_corr; // corrected TDC time
+    Double_t adctime_twcorr = fGoodNegData[pad_index].adctime - tw_corr; // corrected ADC time
+
+    fGoodNegData[pad_index].SetTimeCorr(tdctime_twcorr);    
   }
 
   return;

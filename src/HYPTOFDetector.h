@@ -28,11 +28,9 @@ class HYPTOFDetector : public THaNonTrackingDetector, THcHitList {
 
   Double_t GetCorrPosC1(Int_t scin_index) const { return fCorrPosC1[scin_index]; }
   Double_t GetCorrPosC2(Int_t scin_index) const { return fCorrPosC2[scin_index]; }
-  Double_t GetCorrPosC3(Int_t scin_index) const { return fCorrPosC3[scin_index]; }
   Double_t GetCorrNegC1(Int_t scin_index) const { return fCorrNegC1[scin_index]; }
   Double_t GetCorrNegC2(Int_t scin_index) const { return fCorrNegC2[scin_index]; }
-  Double_t GetCorrNegC3(Int_t scin_index) const { return fCorrNegC3[scin_index]; }
-
+  Double_t GetTDCThrs()                   const { return fTdcThrs; }
   // Pulse height correction calib parameters
   HYPTOFPlane* GetPlane(Int_t ip) { return fPlanes[ip];}
   Int_t GetScinIndex(Int_t iplane, Int_t ipaddle);
@@ -55,8 +53,7 @@ class HYPTOFDetector : public THaNonTrackingDetector, THcHitList {
   Double_t *fCorrNegC1;
   Double_t *fCorrPosC2;
   Double_t *fCorrNegC2;
-  Double_t *fCorrPosC3;
-  Double_t *fCorrNegC3;
+  Double_t fTdcThrs;
 
   std::vector<HYPTOFPlane*> fPlanes;
  

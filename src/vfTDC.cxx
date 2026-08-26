@@ -10,6 +10,7 @@
 #include "vfTDC.h"
 #include "THaSlotData.h"
 #include "jlabdec.h"
+#include <cstdint>
 #include <iostream>
 
 using namespace std;
@@ -86,6 +87,8 @@ namespace Decoder {
     UInt_t data_type_cont =(*p >> 31) & 0x1; 
     UInt_t data_type_def =(*p >> 27) & 0xF; 
 
+    Int_t trig = 0;
+
     if (data_type_def ==0 && data_type_cont==0) data_type_def = 3; // trigger time continuation 
     
     static uint32_t type_last = 15;
@@ -139,7 +142,8 @@ namespace Decoder {
         } else {
           tdc_data.trig_time_h = *p & 0xFFFFFF;  // Event header trigger time high 24
 	  //std::cout << "High Trigger: Slot = " << tdc_data.glb_hdr_slno << "  Trigger Time H = " << tdc_data.trig_time_h << endl;
-	  tdc_data.trig_time = (((tdc_data.trig_time_h << 24) | tdc_data.trig_time_l)%1024)*4000 - 10000;
+    trig = (((tdc_data.trig_time_h << 24) | tdc_data.trig_time_l)%1024); // trigger time in 4ns window
+	  tdc_data.trig_time = trig*4 - 10; // time in ns
 	  //std::cout << "Trigger: Slot = " << tdc_data.glb_hdr_slno << "  Trigger Time = " << dec << tdc_data.trig_time << endl;
         }
       }
@@ -149,6 +153,8 @@ namespace Decoder {
         Int_t group  = ((*p) & 0x07000000)>>24;
         Int_t chan   = ((*p) & 0x00F80000)>>19;
         Int_t edgeD  = ((*p) & 0x00040000)>>18;
+
+        Int_t timebit = ((*p) & 0x3FFFF); // lower 18 bit
         Int_t coarse = ((*p) & 0x0003FF00)>>8;
         Int_t two_ns = ((*p) & 0x00000080)>>7;
         Int_t fine   = ((*p) & 0x0000007F);
@@ -175,15 +181,35 @@ namespace Decoder {
 	  tdc_data.chan = group*32 + chan;
 	  }
 	*/
-	//tdc_data.raw = coarse*4 + two_ns*2 + fine*2/124.87; // time in ns
-	tdc_data.raw = coarse*4 + two_ns*2 + fine*2/128.; // time in ns
-	
+
+  // tdc_data.raw = coarse*4000 + two_ns*2000 + fine*2000/124.87; // time in ps
   // Remove trigger time subtraction to avoid two peaks for ref time
-	if (tdc_data.raw < tdc_data.trig_time) {
+  /*
+  if (tdc_data.raw < tdc_data.trig_time) {
 	  tdc_data.raw = tdc_data.raw + 1024*4;
 	}	
 	tdc_data.raw = tdc_data.raw - tdc_data.trig_time/1000.; // time in ns
-	
+	*/
+
+  Int_t time_temp = coarse*4 + two_ns*2 + fine*2/124.; // time in ns
+  if( time_temp < tdc_data.trig_time) {
+    //cout << "Trigger time: " << (((tdc_data.trig_time_h << 24) | tdc_data.trig_time_l)%1024) << ", " << tdc_data.trig_time << endl;
+    //cout << "TDC time: " << coarse << ", " << two_ns << ", " << fine << ", " << time_temp << endl;
+    coarse = (coarse - trig) + 1024;
+
+    // Encode it back after trigger time subtraction
+    // 10ns shift to trigger time -- need to add it back in the detector class
+    UInt_t new_timebit = 0;
+    new_timebit |= ((coarse & 0x3FF) << 8);
+    new_timebit |= ((two_ns & 0x01) << 7);
+    new_timebit |= (fine & 0x7F);
+    tdc_data.raw = new_timebit;
+  }
+  else {
+  // pass lower 18bit as it is and unpack in the detector class
+  tdc_data.raw = timebit;
+  }
+
 	tdc_data.status = slot_data->loadData("tdc", tdc_data.chan, tdc_data.raw, tdc_data.opt);
 
 #ifdef WITH_DEBUG

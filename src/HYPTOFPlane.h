@@ -78,16 +78,18 @@ class HYPTOFPlane : public THaSubDetector{
     // Time correction 
     class TOFCalib {
       private:
-        // assume three parameters
-        Double_t TWCorr[3];
+        // assume two parameters
+        Double_t TWCorr[2];
       public:
-        void SetParams(Double_t c1, Double_t c2, Double_t c3) {
-          TWCorr[0] = c1; TWCorr[1] = c2; TWCorr[2] = c3;
+        void SetParams(Double_t c1, Double_t c2) {
+          TWCorr[0] = c1; TWCorr[1] = c2;
         }
         Double_t GetPar(Int_t i) const { return TWCorr[i]; }
     };
     vector<TOFCalib> fPosCalib;
-    vector<TOFCalib> fNegCalib;    
+    vector<TOFCalib> fNegCalib;
+
+    Double_t fFineCalib; // calibraiton constant for vfTDC
 
     // Reference time variables
     Double_t fTdcRefTime[2];
@@ -106,6 +108,7 @@ class HYPTOFPlane : public THaSubDetector{
     Double_t fScinTdcMin;
     Double_t fScinTdcMax;
     Double_t fScinTdcToTime;
+    Double_t fTdcThrs;
 
     Int_t ReadDatabase( const TDatime &date );
     Int_t DefineVariables( EMode mode = kDefine );
@@ -113,6 +116,7 @@ class HYPTOFPlane : public THaSubDetector{
     Int_t GetNumPosAdcHits() { return static_cast<Int_t>(fPosAdcData.size()); }
     Int_t GetNumNegAdcHits() { return static_cast<Int_t>(fNegAdcData.size()); }
     void DoTimeCorrection(Int_t signal, Int_t pad_index);
+    Double_t DecodeTDCData(Int_t tdc);
 
   ClassDef(HYPTOFPlane, 0);
 

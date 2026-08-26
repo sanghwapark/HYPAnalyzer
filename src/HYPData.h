@@ -40,15 +40,16 @@ namespace HYPData {
   // TOF detector output 
   class TOFEvent {
     public:
-      TOFEvent() : paddle(0), ped(0), adc(0), amp(0), adctime(0), adctdctdiff(0),
+      TOFEvent() : paddle(0), ped(0), adc(0), amp(0), adctime(-999), adctdctdiff(-999),
         mult(-1), hit_used(-1), time_uncorr(-999), time_corr(-999) {}
 
       void clear() {
         paddle = 0;
-        ped = adc = amp = adctime = adctdctdiff = 0;
+        ped = adc = amp = 0;
+        adctime = adctdctdiff = -999;
         mult = hit_used = -1;
-        time_uncorr = 0;
-        time_corr = 0;
+        time_uncorr = -999;
+        time_corr = -999;
       }
       void SetPaddle(Int_t padnum) { paddle = padnum; }
       void SetTimeCorr(Double_t t_c) { time_corr = t_c; }
