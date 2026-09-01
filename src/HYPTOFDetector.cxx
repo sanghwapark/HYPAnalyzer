@@ -35,8 +35,6 @@ HYPTOFDetector::~HYPTOFDetector()
   delete [] fCorrNegC1;   fCorrNegC1 = nullptr;
   delete [] fCorrPosC2;   fCorrPosC2 = nullptr;
   delete [] fCorrNegC2;   fCorrNegC2 = nullptr;
-  delete [] fCorrPosC3;   fCorrPosC3 = nullptr;
-  delete [] fCorrNegC3;   fCorrNegC3 = nullptr;
 }
 
 //____________________________________________________________________________________
@@ -149,8 +147,6 @@ Int_t HYPTOFDetector::ReadDatabase( const TDatime & date )
   fCorrNegC1 = new Double_t[fNArrays];
   fCorrPosC2 = new Double_t[fNArrays];
   fCorrNegC2 = new Double_t[fNArrays];
-  fCorrPosC3 = new Double_t[fNArrays];
-  fCorrNegC3 = new Double_t[fNArrays];
 
   Bool_t optional = true;
   DBRequest list[] = {
@@ -163,23 +159,23 @@ Int_t HYPTOFDetector::ReadDatabase( const TDatime & date )
     {"tof_c1_neg",        fCorrNegC1,  kDouble, (UInt_t) fNArrays, optional},
     {"tof_c2_pos",        fCorrPosC2,  kDouble, (UInt_t) fNArrays, optional},
     {"tof_c2_neg",        fCorrNegC2,  kDouble, (UInt_t) fNArrays, optional},
-    {"tof_c3_pos",        fCorrPosC3,  kDouble, (UInt_t) fNArrays, optional},
-    {"tof_c3_neg",        fCorrNegC3,  kDouble, (UInt_t) fNArrays, optional},
+    {"tof_TDC_threshold", &fTdcThrs,   kDouble, 0, optional},  
     {nullptr}
   };
+
+  // Default values
+  fTdcThrs = 1.0;
 
   for(Int_t i = 0; i < fNPlanes; i++) {
     fTdcOffset[i] = 0.0;
     fAdcTdcOffset[i] = 0.0;
   }
-  
+    
   for(Int_t i = 0; i < fNArrays; i++){
     fCorrPosC1[i] = 0.0;
     fCorrNegC1[i] = 0.0;
     fCorrPosC2[i] = 0.0;
     fCorrNegC2[i] = 0.0;
-    fCorrPosC3[i] = 0.0;
-    fCorrNegC3[i] = 0.0;
   }
 
   gHcParms->LoadParmValues((DBRequest*)&list, prefix);
